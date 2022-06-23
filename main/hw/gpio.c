@@ -21,6 +21,9 @@ static rmt_encoder_handle_t led_enc_hndl = NULL;
 static rmt_transmit_config_t tx_config = {
     .loop_count = 0,                    // no transfer loop
 };
+#if CONFIG_LED_RGB_PART_NONE
+static rmt_bytes_encoder_config_t bytes_encoder_config = NULL;
+#elif CONFIG_LED_RGB_PART_SK68
 static rmt_bytes_encoder_config_t bytes_encoder_config = {
     .bit0 = {
         .level0 = 1,
@@ -36,6 +39,7 @@ static rmt_bytes_encoder_config_t bytes_encoder_config = {
     },
     .flags.msb_first = 1
 };
+#endif
 
 static void p_RGB_init(void) {
     ESP_ERROR_CHECK(rmt_new_tx_channel(&led_ch_config, &led_ch_hndl));

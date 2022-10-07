@@ -8,6 +8,7 @@
 #include "esp_log.h"
 
 #include "tasks.h"
+#include "cli/cli.h"
 #include "hw/gpio.h"
 #include "hw/espnow.h"
 
@@ -16,9 +17,10 @@ void app_main(void) {
     ESP_LOGI(appName, "start");
 
     gpio_init();
+    CLI_init();
 
-    xTaskCreate(task_cli, "task_CLI", 2048, NULL, 1, NULL);
-    xTaskCreate(task_rf, "task_RF", 2048, NULL, 2, NULL);
+    xTaskCreate(task_cli, "task_CLI", 2048, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(task_rf, "task_RF", 2048, NULL, (tskIDLE_PRIORITY + 2), NULL);
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
 

@@ -27,8 +27,8 @@
 #endif
 
 static void p_wifi_init(void) {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    ESP_ERROR_CHECK( esp_netif_init() );
+    ESP_ERROR_CHECK( esp_event_loop_create_default() );
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
@@ -96,9 +96,8 @@ void espnow_set_rx_callback(void fptr(const uint8_t *mac_addr, const uint8_t *da
     ESP_ERROR_CHECK( esp_now_register_recv_cb(fptr) );
 }
 
-void espnow_tx(uint8_t devId, const uint8_t *data, size_t len) {
-    uint8_t buff[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    if(esp_now_send(s_example_broadcast_mac, buff, 10) != ESP_OK) {
+void espnow_tx(const uint8_t *mac_addr, const uint8_t *data, size_t len) {
+    if(esp_now_send(mac_addr, data, len) != ESP_OK) {
         ESP_LOGE(TAG, "TX error");
     }
 }

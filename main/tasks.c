@@ -6,21 +6,20 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(CONFIG_IDF_TARGET)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#endif
 
-#include "esp_log.h"
-#include "esp_mac.h"
-
-//#include "agathis/comm.h"
+#include "agathis/comm.h"
 #include "cli/cli.h"
-#include "hw/espnow.h"
+#include "hw/storage.h"
 
 static void p_CLI_init_prompt(void) {
     char prompt[CLI_PROMPT_SIZE];
-    uint32_t mac[2] = {0x00445566, 0x00112233};
+    uint32_t mac[2];
 
-//    stor_get_MAC_compact(mac);
+    stor_get_MAC_compact(mac);
     snprintf(prompt, CLI_PROMPT_SIZE, "[%06lx:%06lx]$ ", mac[1], mac[0]);
     printf("press ? for help\n");
     CLI_setPrompt(prompt);
@@ -46,7 +45,7 @@ void *task_cli (void *vargp) {
         }
     }
 }
-#elif defined (CONFIG_IDF_TARGET)
+#elif defined(CONFIG_IDF_TARGET)
 void task_cli(void *pvParameter) {
     uint8_t parseSts;
 
@@ -64,17 +63,6 @@ void task_cli(void *pvParameter) {
 }
 #endif
 
-static void p_espnow_tx_cbk(const uint8_t *mac_addr,
-                            esp_now_send_status_t status) {
-    char *appName = pcTaskGetName(NULL);
-    ESP_LOGI(appName, "TX to "MACSTR" status %d", MAC2STR(mac_addr), status);
-}
-
-static void p_espnow_rx_cbk(const uint8_t *mac_addr, const uint8_t *data, int len) {
-    char *appName = pcTaskGetName(NULL);
-    ESP_LOGI(appName, "RX from "MACSTR" %d B", MAC2STR(mac_addr), len);
-}
-
 #if defined(__linux__)
 void *task_rf (void *vargp) {
     ag_comm_init();
@@ -86,14 +74,11 @@ void *task_rf (void *vargp) {
 #elif defined (CONFIG_IDF_TARGET)
 void task_rf(void *pvParameter) {
     //char *appName = pcTaskGetName(NULL);
-    espnow_init();
-    espnow_set_tx_callback(p_espnow_tx_cbk);
-    espnow_set_rx_callback(p_espnow_rx_cbk);
+    ag_comm_init();
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     while (1) {
-        //espnow_tx(0, NULL, 0);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ag_comm_main();
     }
     vTaskDelete(NULL);
 }

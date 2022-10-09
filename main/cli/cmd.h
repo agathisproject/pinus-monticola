@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #include "cli_types.h"
-//#include "../agathis/config.h"
+#include "../agathis/config.h"
 
 CLI_CMD_RETURN_t cmd_info(CLI_PARSED_CMD_t *cmdp);
 CLI_CMD_RETURN_t cmd_set(CLI_PARSED_CMD_t *cmdp);

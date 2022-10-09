@@ -170,7 +170,6 @@ void CLI_getCmd(void) {
             p_CLI_BUFF[idx] = '\0';
         }
     }
-    //printf("DBG: getCMD '%s'\n", p_CLI_BUFF);
 }
 
 uint8_t CLI_parseCmd(void) {

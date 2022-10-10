@@ -13,9 +13,8 @@
 
 #include "defs.h"
 #include "config.h"
-#include "../hw/gpio.h"
+//#include "../hw/gpio.h"
 #include "../hw/storage.h"
-//#include "../platform/platform.h"
 
 AG_MC_STATE_t MOD_STATE = {.caps_hw_ext = 0, .caps_hw_int = 0, .caps_sw = 0,
                            .last_err = 0, .type = 0,
@@ -153,7 +152,7 @@ void ag_brd_pwr_on(void) {
 float ag_get_I5_NOM(void) {
 #if defined(__AVR__)
     return 0.0f;
-#elif defined(CONFIG_IDF_TARGET)
+#elif defined(ESP_PLATFORM)
     return 0.0f;
 #elif defined(__linux__)
     return getValue_random((MOD_STATE.i5_nom * 0.7f), 5);
@@ -163,7 +162,7 @@ float ag_get_I5_NOM(void) {
 float ag_get_I3_NOM(void) {
 #if defined(__AVR__)
     return 0.0f;
-#elif defined(CONFIG_IDF_TARGET)
+#elif defined(ESP_PLATFORM)
     return 0.0f;
 #elif defined(__linux__)
     return getValue_random((MOD_STATE.i3_nom * 0.5f), 5);

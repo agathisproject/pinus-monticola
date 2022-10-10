@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef GPIO_HDTCR4RCYNWCHYS4
-#define GPIO_HDTCR4RCYNWCHYS4
+#ifndef ESP_PLATFORM_HDTCR4RCYNWCHYS4
+#define ESP_PLATFORM_HDTCR4RCYNWCHYS4
 
 #include <stdint.h>
+
+void nvs_init(void);
 
 void gpio_init(void);
 
@@ -14,4 +16,4 @@ void gpio_init(void);
  */
 void gpio_RGB_send(uint32_t code);
 
-#endif /* GPIO_HDTCR4RCYNWCHYS4 */
+#endif /* ESP_PLATFORM_HDTCR4RCYNWCHYS4 */

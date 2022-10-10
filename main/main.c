@@ -9,7 +9,7 @@
 
 #include "tasks.h"
 #include "cli/cli.h"
-#include "hw/gpio.h"
+#include "hw/esp_platform.h"
 #include "hw/espnow.h"
 
 void app_main(void) {

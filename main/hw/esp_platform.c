@@ -1,11 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "gpio.h"
+#include "esp_platform.h"
 
 #include "esp_log.h"
+#include "nvs_flash.h"
 #include "driver/rmt_tx.h"
 
-#define TAG "hw-gpio"
+#define TAG "hw-esp"
+
+void nvs_init(void) {
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK( nvs_flash_erase() );
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK( ret );
+    ESP_LOGI(TAG, "non-volatile storage init done");
+}
 
 static rmt_channel_handle_t led_ch_hndl = NULL;
 static rmt_tx_channel_config_t led_ch_config = {

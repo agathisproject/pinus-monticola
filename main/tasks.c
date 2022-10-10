@@ -6,23 +6,27 @@
 #include <string.h>
 #include <unistd.h>
 
-#if defined(CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include "hw/esp_platform.h"
 #endif
 
 #include "agathis/comm.h"
 #include "cli/cli.h"
-#include "hw/storage.h"
+#include "hw/misc.h"
 
 static void p_CLI_init_prompt(void) {
     char prompt[CLI_PROMPT_SIZE];
     uint32_t mac[2];
 
-    stor_get_MAC_compact(mac);
+    get_HW_ID_compact(mac);
     snprintf(prompt, CLI_PROMPT_SIZE, "[%06lx:%06lx]$ ", mac[1], mac[0]);
     printf("press ? for help\n");
     CLI_setPrompt(prompt);
+
+    gpio_RGB_send(0);
 }
 
 #if defined(__linux__)
@@ -45,7 +49,7 @@ void *task_cli (void *vargp) {
         }
     }
 }
-#elif defined(CONFIG_IDF_TARGET)
+#elif defined(ESP_PLATFORM)
 void task_cli(void *pvParameter) {
     uint8_t parseSts;
 
@@ -71,7 +75,7 @@ void *task_rf (void *vargp) {
         ag_comm_main();
     }
 }
-#elif defined (CONFIG_IDF_TARGET)
+#elif defined(ESP_PLATFORM)
 void task_rf(void *pvParameter) {
     //char *appName = pcTaskGetName(NULL);
     ag_comm_init();

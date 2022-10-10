@@ -7,7 +7,7 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -27,9 +27,7 @@
 
 #include "defs.h"
 #include "base.h"
-#include "../hw/gpio.h"
-#include "../hw/storage.h"
-//#include "../platform/platform.h"
+#include "../hw/misc.h"
 
 static AG_FRAME_L0 p_tx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_LEN, NULL};
 static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_LEN, NULL};
@@ -46,7 +44,7 @@ int ag_comm_is_frame_master(AG_FRAME_L0 *frame) {
     return 0;
 }
 
-#if defined(CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
 static void p_espnow_tx_cbk(const uint8_t *mac_addr,
                             esp_now_send_status_t status) {
     //char *appName = pcTaskGetName(NULL);
@@ -184,7 +182,7 @@ int ag_comm_tx(AG_FRAME_L0 *frame) {
         return -1;
     }
 
-#if defined (CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
     if (frame->nb > ESP_NOW_MAX_DATA_LEN) {
         //printf("%s - frame TOO BIG\n", __func__);
         return -1;
@@ -268,14 +266,14 @@ AG_FRAME_L0 *ag_comm_get_tx_frame(void) {
 
     // if the frame is being transmitted, wait
     while ((p_tx_frame.flags & AG_FRAME_FLAG_VALID) != 0) {
-#if defined(CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
         vTaskDelay(1 / portTICK_PERIOD_MS);
 #elif defined(__linux__)
         usleep(1000);
 #endif
     }
 
-    stor_get_MAC_compact(my_mac);
+    get_HW_ID_compact(my_mac);
     p_tx_frame.src_mac[0] = my_mac[0];
     p_tx_frame.src_mac[1] = my_mac[1];
     memset(p_tx_frame.data, 0, p_tx_frame.nb * sizeof (uint8_t));
@@ -296,7 +294,7 @@ void ag_comm_init(void) {
         return;
     }
 
-#if defined (CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
     espnow_init();
     espnow_set_tx_callback(p_espnow_tx_cbk);
     espnow_set_rx_callback(p_espnow_rx_cbk);
@@ -306,7 +304,7 @@ void ag_comm_init(void) {
 }
 
 void ag_comm_main(void) {
-#if defined(CONFIG_IDF_TARGET)
+#if defined(ESP_PLATFORM)
     time_t ts_now = time(NULL);
     if ((ts_now % 5) == 0) {
         AG_FRAME_L0 *frame = ag_comm_get_tx_frame();

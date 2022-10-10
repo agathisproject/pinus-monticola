@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-void show_info(void);
+void get_HW_ID(uint8_t *mac);
 
-void nvs_init(void);
+void get_HW_ID_compact(uint32_t *mac);
 
 #endif /* MISC_DR7WHAS4LTQNESQ3 */

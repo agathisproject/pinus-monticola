@@ -2,26 +2,44 @@
 
 #include "misc.h"
 
-#include "esp_log.h"
-#include "nvs_flash.h"
+#if defined(ESP_PLATFORM)
 #include "esp_mac.h"
+#elif defined(__linux__)
+#include "../sim/state.h"
+#endif
 
-#define TAG "hw-misc"
-
-void show_info(void) {
-    uint8_t mac_addr[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    ESP_ERROR_CHECK(esp_efuse_mac_get_default(mac_addr));
-    ESP_LOGI(TAG, "MAC: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0],
-             mac_addr[1], mac_addr[2], mac_addr[3],
-             mac_addr[4], mac_addr[5], mac_addr[6], mac_addr[7]);
+/**
+ * @brief returns the HW ID - usually the MAC address
+ * @param mac array of 6 * uint8_t
+ */
+void get_HW_ID(uint8_t *mac) {
+#if defined(__linux__)
+    for (int i = 0; i < 6; i++) {
+        mac[i] = SIM_STATE.mac[i];
+    }
+#elif defined(ESP_PLATFORM)
+    uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    ESP_ERROR_CHECK(esp_efuse_mac_get_default(buff));
+    for (int i = 0; i < 6; i++) {
+        mac[0] = buff[5 - i];
+    }
+#endif
 }
 
-void nvs_init(void) {
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK( nvs_flash_erase() );
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK( ret );
-    ESP_LOGI(TAG, "non-volatile storage init done");
+/**
+ * @brief returns the HW ID - usually the MAC address
+ * @param mac array of 2 * uint32_t
+ */
+void get_HW_ID_compact(uint32_t *mac) {
+#if defined(__linux__)
+    // *INDENT-OFF*
+    mac[1] = ((uint32_t) SIM_STATE.mac[5] << 16) | ((uint32_t) SIM_STATE.mac[4] << 8) | SIM_STATE.mac[3];
+    mac[0] = ((uint32_t) SIM_STATE.mac[2] << 16) | ((uint32_t) SIM_STATE.mac[1] << 8) | SIM_STATE.mac[0];
+    // *INDENT-ON*
+#elif defined(ESP_PLATFORM)
+    uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    ESP_ERROR_CHECK(esp_efuse_mac_get_default(buff));
+    mac[1] = ((uint32_t) buff[0] << 16) | ((uint32_t) buff[1] << 8) | buff[2];
+    mac[0] = ((uint32_t) buff[3] << 16) | ((uint32_t) buff[4] << 8) | buff[5];
+#endif
 }

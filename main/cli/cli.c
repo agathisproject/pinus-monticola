@@ -25,7 +25,7 @@ uint8_t p_CLI_IsRxReady(void) {
 uint8_t p_CLI_GetChar(void) {
     return (uint8_t) getchar();
 }
-#elif defined (CONFIG_IDF_TARGET)
+#elif defined(ESP_PLATFORM)
 uint8_t p_CLI_IsRxReady(void) {
     return 1;
 }

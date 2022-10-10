@@ -4,8 +4,6 @@
 
 #include <string.h>
 
-#include "misc.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -14,6 +12,8 @@
 #include "esp_mac.h"
 #include "esp_random.h"
 #include "esp_crc.h"
+
+#include "esp_platform.h"
 
 #define TAG "hw-espnow"
 

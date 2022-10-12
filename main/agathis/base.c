@@ -11,15 +11,15 @@
 #include "../sim/misc.h"
 #endif
 
-#include "defs.h"
 #include "config.h"
 //#include "../hw/gpio.h"
 #include "../hw/storage.h"
 
-AG_MC_STATE_t MOD_STATE = {.caps_hw_ext = 0, .caps_hw_int = 0, .caps_sw = 0,
-                           .last_err = 0, .type = 0,
+AG_MC_STATE_t MOD_STATE = {.ver = 1, .caps_hw_ext = 0, .caps_hw_int = 0, .caps_sw = 0,
+                           .last_err = 0, .type = 0, .tbd = 0xFF,
                            .mfr_name = "", .mfr_pn = "", .mfr_sn = "",
                            .i5_nom = 0.1f,  .i5_cutoff = 0.12f, .i3_nom = 1.0f, .i3_cutoff = 1.5f,
+                           .crc = 0xdeadbeef,
                           };
 
 AG_RMT_MC_STATE_t REMOTE_MODS[AG_MC_MAX_CNT] = {
@@ -108,8 +108,8 @@ void ag_reset(void) {
 }
 
 void ag_init(void) {
-#if MOD_HAS_EEPROM
-    MOD_STATE.caps_hw_int = AG_CAP_INT_EEPROM;
+#if MOD_HAS_STORAGE
+    MOD_STATE.caps_hw_int = AG_CAP_INT_STORAGE;
 #endif
 
 #if MOD_HAS_PWR
@@ -131,7 +131,7 @@ void ag_init(void) {
     MOD_STATE.caps_hw_ext |= AG_CAP_EXT_PCIE;
 #endif
 
-#if MOD_HAS_EEPROM
+#if MOD_HAS_STORAGE
     stor_restore_state();
 #endif
     MOD_STATE.last_err = AG_ERR_NONE;

@@ -60,7 +60,6 @@ static void example_espnow_recv_cb(const uint8_t *mac_addr, const uint8_t *data,
 
 
 void espnow_init(void) {
-    nvs_init();
     p_wifi_init();
 
     /* Initialize ESPNOW and register sending and receiving callback function. */

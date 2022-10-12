@@ -25,7 +25,6 @@
 #include "../sim/state.h"
 #endif
 
-#include "defs.h"
 #include "base.h"
 #include "../hw/misc.h"
 

@@ -8,7 +8,6 @@
 
 #include "../agathis/base.h"
 #include "../agathis/comm.h"
-#include "../agathis/defs.h"
 #include "../agathis/config.h"
 #include "../hw/storage.h"
 
@@ -43,7 +42,9 @@ CLI_CMD_RETURN_t cmd_set(CLI_PARSED_CMD_t *cmdp) {
 }
 
 CLI_CMD_RETURN_t cmd_save(CLI_PARSED_CMD_t *cmdp) {
+#if MOD_HAS_STORAGE
     stor_save_state();
+#endif
     return CMD_DONE;
 }
 

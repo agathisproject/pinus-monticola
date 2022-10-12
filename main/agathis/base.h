@@ -6,17 +6,20 @@
 
 #include <stdint.h>
 
-#define PREFIX_MC "[ MC]"
-#define I2C_OFFSET 0x20
+#include "defs.h"
+
+#define I2C_OFFSET  0x20
 
 /**
  * @brief state of the local MC (Management Controller)
  */
 typedef struct {
+    uint8_t ver;            /**< structure version */
     uint8_t caps_hw_ext;    /**< HW capabilities that should be advertised */
     uint8_t caps_hw_int;    /**< HW capabilities that should NOT be advertised */
     uint8_t caps_sw;        /**< SW capabilities set by user */
     uint8_t last_err;
+    uint8_t tbd;
     uint16_t type;
     char mfr_name[16];
     char mfr_pn[16];
@@ -25,6 +28,7 @@ typedef struct {
     float i5_cutoff;
     float i3_nom;
     float i3_cutoff;
+    uint32_t crc;
 } AG_MC_STATE_t;
 
 extern AG_MC_STATE_t MOD_STATE;

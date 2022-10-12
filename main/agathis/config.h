@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#define MOD_HAS_EEPROM 1     /**< module has EEPROM */
+#define MOD_HAS_STORAGE 1    /**< module has storage for state */
 #define MOD_HAS_PWR 1        /**< module can supply power */
 #define MOD_HAS_CLK 1        /**< module can synchronize to trunk clock */
 #define MOD_HAS_1PPS 1       /**< module can synchronize to 1PPS signal */

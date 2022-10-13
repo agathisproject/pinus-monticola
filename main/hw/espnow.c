@@ -42,7 +42,7 @@ static void p_wifi_init(void) {
     ESP_LOGI(TAG, "wifi init done");
 }
 
-static uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+//static uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /* ESPNOW sending or receiving callback function is called in WiFi task.
  * Users should not do lengthy operations from this task. Instead, post
@@ -54,10 +54,38 @@ static void example_espnow_send_cb(const uint8_t *mac_addr,
 
 static void example_espnow_recv_cb(const uint8_t *mac_addr, const uint8_t *data, int len) {
     ESP_LOGI(TAG, "RX from "MACSTR" %d B", MAC2STR(mac_addr), len);
-    ESP_LOGI(TAG, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", data[0], data[1], data[2], data[3], data[4],
-             data[5], data[6], data[7], data[8], data[9]);
+//    ESP_LOGI(TAG, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", data[0], data[1], data[2], data[3], data[4],
+//             data[5], data[6], data[7], data[8], data[9]);
 }
 
+void espnow_add_peer(uint32_t mac_addr1, uint32_t mac_addr0) {
+    //ESP_LOGI(TAG, "add peer %x %x\n", (unsigned int) mac_addr1, (unsigned int) mac_addr0);
+    uint8_t mac_addr[6] = {(uint8_t) (mac_addr1 >> 16), (uint8_t) (mac_addr1 >> 8), (uint8_t) (mac_addr1),
+                           (uint8_t) (mac_addr0 >> 16), (uint8_t) (mac_addr0 >> 8), (uint8_t) (mac_addr0)
+                        };
+    esp_now_peer_info_t *peer = malloc(sizeof(esp_now_peer_info_t));
+    if (peer == NULL) {
+        ESP_LOGE(TAG, "CANNOT malloc peer");
+        esp_now_deinit();
+        return;
+    }
+
+    memset(peer, 0, sizeof(esp_now_peer_info_t));
+    peer->channel = CONFIG_ESPNOW_CHANNEL;
+    peer->ifidx = ESPNOW_WIFI_IF;
+    peer->encrypt = false;
+    memcpy(peer->peer_addr, mac_addr, ESP_NOW_ETH_ALEN);
+    ESP_ERROR_CHECK( esp_now_add_peer(peer) );
+    free(peer);
+}
+
+void espnow_del_peer(uint32_t mac_addr1, uint32_t mac_addr0) {
+    //ESP_LOGI(TAG, "del peer %x %x\n", (unsigned int) mac_addr1, (unsigned int) mac_addr0);
+    uint8_t mac_addr[6] = {(uint8_t) (mac_addr1 >> 16), (uint8_t) (mac_addr1 >> 8), (uint8_t) (mac_addr1),
+                           (uint8_t) (mac_addr0 >> 16), (uint8_t) (mac_addr0 >> 8), (uint8_t) (mac_addr0)
+    };
+    ESP_ERROR_CHECK( esp_now_del_peer(mac_addr) );
+}
 
 void espnow_init(void) {
     p_wifi_init();
@@ -70,21 +98,7 @@ void espnow_init(void) {
     /* Set primary master key. */
     ESP_ERROR_CHECK( esp_now_set_pmk((uint8_t *)CONFIG_ESPNOW_PMK) );
 
-    /* Add broadcast peer information to peer list. */
-    esp_now_peer_info_t *peer = malloc(sizeof(esp_now_peer_info_t));
-    if (peer == NULL) {
-        ESP_LOGE(TAG, "Malloc peer information fail");
-        //vSemaphoreDelete(s_example_espnow_queue);
-        esp_now_deinit();
-        return;
-    }
-    memset(peer, 0, sizeof(esp_now_peer_info_t));
-    peer->channel = CONFIG_ESPNOW_CHANNEL;
-    peer->ifidx = ESPNOW_WIFI_IF;
-    peer->encrypt = false;
-    memcpy(peer->peer_addr, s_example_broadcast_mac, ESP_NOW_ETH_ALEN);
-    ESP_ERROR_CHECK( esp_now_add_peer(peer) );
-    free(peer);
+    espnow_add_peer(0x00FFFFFF, 0x00FFFFFF);
 }
 
 void espnow_set_tx_callback(void fptr(const uint8_t *mac_addr, esp_now_send_status_t status)) {

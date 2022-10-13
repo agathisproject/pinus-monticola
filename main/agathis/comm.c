@@ -187,8 +187,8 @@ int ag_comm_tx(AG_FRAME_L0 *frame) {
         return -1;
     }
 
-    uint8_t dst_mac[6] = {(uint8_t) (frame->dst_mac[0]), (uint8_t) (frame->dst_mac[0] >> 8), (uint8_t) (frame->dst_mac[0] >> 16),
-                          (uint8_t) (frame->dst_mac[1]), (uint8_t) (frame->dst_mac[1] >> 8), (uint8_t) (frame->dst_mac[1] >> 16)
+    uint8_t dst_mac[6] = {(uint8_t) (frame->dst_mac[1] >> 16), (uint8_t) (frame->dst_mac[1] >> 8), (uint8_t) (frame->dst_mac[1]),
+                          (uint8_t) (frame->dst_mac[0] >> 16), (uint8_t) (frame->dst_mac[0] >> 8), (uint8_t) (frame->dst_mac[0])
                          };
     espnow_tx(dst_mac, frame->data, frame->nb);
 #elif defined(__linux__)

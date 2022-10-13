@@ -6,6 +6,8 @@
 
 #if defined(__AVR__)
 #include <avr/wdt.h>
+#elif defined(ESP_PLATFORM)
+#include "../hw/espnow.h"
 #elif defined(__linux__)
 #include "../sim/state.h"
 #include "../sim/misc.h"
@@ -55,10 +57,13 @@ void ag_add_remote_mod(const uint32_t *mac, uint8_t caps) {
     }
 
     if (idx_free >= 0) {
-        REMOTE_MODS[idx_free].mac[0] = mac[0];
         REMOTE_MODS[idx_free].mac[1] = mac[1];
+        REMOTE_MODS[idx_free].mac[0] = mac[0];
         REMOTE_MODS[idx_free].caps = caps;
         REMOTE_MODS[idx_free].last_seen = 0;
+#if defined(ESP_PLATFORM)
+        espnow_add_peer(REMOTE_MODS[idx_free].mac[1], REMOTE_MODS[idx_free].mac[0]);
+#endif
     } else {
         printf("CANNOT add MC - too many\n");
     }
@@ -70,8 +75,11 @@ void ag_upd_remote_mods(void) {
             continue;
         }
         if (REMOTE_MODS[i].last_seen > AG_MC_MAX_AGE) {
-            REMOTE_MODS[i].mac[0] = 0;
+#if defined(ESP_PLATFORM)
+            espnow_del_peer(REMOTE_MODS[i].mac[1], REMOTE_MODS[i].mac[0]);
+#endif
             REMOTE_MODS[i].mac[1] = 0;
+            REMOTE_MODS[i].mac[0] = 0;
             REMOTE_MODS[i].caps = 0;
             REMOTE_MODS[i].last_err = AG_ERR_NONE;
             REMOTE_MODS[i].last_seen = -1;

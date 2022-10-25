@@ -48,15 +48,17 @@ typedef struct {
 
 extern AG_RMT_MC_STATE_t REMOTE_MODS[AG_MC_MAX_CNT];
 
+void ag_init(void);
+
+void ag_reset(void);
+
 void ag_add_remote_mod(const uint32_t *mac, uint8_t caps);
 
 void ag_upd_remote_mods(void);
 
 void ag_upd_alarm(void);
 
-void ag_reset(void);
-
-void ag_init(void);
+void ag_upd_hw(void);
 
 void ag_id_external(void);
 

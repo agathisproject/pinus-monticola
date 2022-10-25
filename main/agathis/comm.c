@@ -317,11 +317,6 @@ void ag_comm_main(void) {
     if ((p_rx_frame.flags & AG_FRAME_FLAG_VALID) != 0) {
         ag_comm_rx_process(&p_rx_frame);
     }
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-    ag_upd_remote_mods();
-    ag_upd_alarm();
 #elif defined(__linux__)
     time_t ts_now = time(NULL);
     if ((ts_now % 5) == 0) {
@@ -336,10 +331,5 @@ void ag_comm_main(void) {
     if ((p_rx_frame.flags & AG_FRAME_FLAG_VALID) != 0) {
         ag_comm_rx_process(&p_rx_frame);
     }
-
-    sleep(1);
-
-    ag_upd_remote_mods();
-    ag_upd_alarm();
 #endif
 }

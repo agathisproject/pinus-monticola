@@ -8,6 +8,7 @@
 #include <avr/wdt.h>
 #elif defined(ESP_PLATFORM)
 #include "../hw/espnow.h"
+#include "../hw/esp_platform.h"
 #elif defined(__linux__)
 #include "../sim/state.h"
 #include "../sim/misc.h"
@@ -42,6 +43,47 @@ AG_RMT_MC_STATE_t REMOTE_MODS[AG_MC_MAX_CNT] = {
     {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
     {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
 };
+
+static uint8_t cnt_id_led = 0;
+
+void ag_init(void) {
+#if MOD_HAS_STORAGE
+    MOD_STATE.caps_hw_int = AG_CAP_INT_STORAGE;
+#endif
+
+#if MOD_HAS_PWR
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_PWR;
+#endif
+#if MOD_HAS_CLK
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_CLK;
+#endif
+#if MOD_HAS_1PPS
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_1PPS;
+#endif
+#if MOD_HAS_JTAG
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_JTAG;
+#endif
+#if MOD_HAS_USB
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_USB;
+#endif
+#if MOD_HAS_PCIE
+    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_PCIE;
+#endif
+
+#if MOD_HAS_STORAGE
+    stor_restore_state();
+#endif
+    MOD_STATE.last_err = AG_ERR_NONE;
+}
+
+void ag_reset(void) {
+#if defined(__AVR__)
+    printf("reset\n");
+    wdt_enable(WDTO_15MS);
+#elif defined(__linux__)
+    printf("RESET !!!\n");
+#endif
+}
 
 void ag_add_remote_mod(const uint32_t *mac, uint8_t caps) {
     int idx_free = -1;
@@ -106,47 +148,28 @@ void ag_upd_alarm(void) {
     MOD_STATE.last_err = AG_ERR_NONE;
 }
 
-void ag_reset(void) {
-#if defined(__AVR__)
-    printf("reset\n");
-    wdt_enable(WDTO_15MS);
-#elif defined(__linux__)
-    printf("RESET !!!\n");
-#endif
-}
+void ag_upd_hw(void) {
+    uint32_t led_code = 0;
 
-void ag_init(void) {
-#if MOD_HAS_STORAGE
-    MOD_STATE.caps_hw_int = AG_CAP_INT_STORAGE;
-#endif
+    if (MOD_STATE.last_err != 0) {
+        led_code |= 0x00FF0000;
+    } else {
+        led_code &= ~0x00FF0000;
+    }
 
-#if MOD_HAS_PWR
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_PWR;
-#endif
-#if MOD_HAS_CLK
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_CLK;
-#endif
-#if MOD_HAS_1PPS
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_1PPS;
-#endif
-#if MOD_HAS_JTAG
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_JTAG;
-#endif
-#if MOD_HAS_USB
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_USB;
-#endif
-#if MOD_HAS_PCIE
-    MOD_STATE.caps_hw_ext |= AG_CAP_EXT_PCIE;
-#endif
+    if (cnt_id_led > 0) {
+        led_code |= 0x000000FF;
+        cnt_id_led --;
+    } else {
+        led_code &= ~0x000000FF;
+    }
 
-#if MOD_HAS_STORAGE
-    stor_restore_state();
-#endif
-    MOD_STATE.last_err = AG_ERR_NONE;
+    gpio_RGB_send(led_code);
 }
 
 void ag_id_external(void) {
     printf("ID LED\n");
+    cnt_id_led = 5;
 }
 
 void ag_brd_pwr_off(void) {

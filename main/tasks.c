@@ -13,6 +13,7 @@
 #include "hw/esp_platform.h"
 #endif
 
+#include "agathis/base.h"
 #include "agathis/comm.h"
 #include "cli/cli.h"
 #include "hw/misc.h"
@@ -73,6 +74,10 @@ void *task_rf (void *vargp) {
 
     while (1) {
         ag_comm_main();
+        ag_upd_remote_mods();
+        ag_upd_alarm();
+        ag_upd_hw();
+        sleep(1);
     }
 }
 #elif defined(ESP_PLATFORM)
@@ -83,6 +88,10 @@ void task_rf(void *pvParameter) {
 
     while (1) {
         ag_comm_main();
+        ag_upd_remote_mods();
+        ag_upd_alarm();
+        ag_upd_hw();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }

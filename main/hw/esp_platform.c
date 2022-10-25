@@ -64,7 +64,11 @@ void gpio_init(void) {
 }
 
 void gpio_RGB_send(uint32_t code) {
+#if CONFIG_LED_RGB_PART_NONE
+
+#elif CONFIG_LED_RGB_PART_SK68
     //ESP_LOGI(TAG, "%#010x", code);
-    uint8_t data[3] = {(uint8_t) (code & 0xFF), (uint8_t) ((code >> 8) & 0xFF), (uint8_t) ((code >> 16) & 0xFF)};
+    uint8_t data[3] = {(uint8_t) ((code >> 8) & 0xFF), (uint8_t) ((code >> 16) & 0xFF), (uint8_t) (code & 0xFF)};
     ESP_ERROR_CHECK(rmt_transmit(led_ch_hndl, led_enc_hndl, data, 3, &tx_config));
+#endif
 }

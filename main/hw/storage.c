@@ -6,10 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-#if defined(__linux__)
-#include "../sim/state.h"
-#elif defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
 #include "nvs_flash.h"
+#elif defined(__linux__)
+#include "../sim/state.h"
 #endif
 
 #include "../agathis/base.h"

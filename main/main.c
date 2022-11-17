@@ -10,8 +10,8 @@
 #include "tasks.h"
 #include "agathis/base.h"
 #include "cli/cli.h"
-#include "hw/esp_platform.h"
-#include "hw/espnow.h"
+#include "hw/platform_esp/base.h"
+#include "hw/platform_esp/espnow.h"
 
 void app_main(void) {
     char *appName = pcTaskGetName(NULL);

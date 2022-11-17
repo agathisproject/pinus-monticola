@@ -17,7 +17,7 @@ uint8_t CLI_IsRxReady(void) {
 uint8_t CLI_GetChar(void) {
     return (uint8_t) UART1_Read();
 }
-#elif defined(__linux__) || defined(__MINGW64__)
+#elif defined(ESP_PLATFORM)
 uint8_t p_CLI_IsRxReady(void) {
     return 1;
 }
@@ -25,7 +25,7 @@ uint8_t p_CLI_IsRxReady(void) {
 uint8_t p_CLI_GetChar(void) {
     return (uint8_t) getchar();
 }
-#elif defined(ESP_PLATFORM)
+#elif defined(__linux__) || defined(__MINGW64__)
 uint8_t p_CLI_IsRxReady(void) {
     return 1;
 }

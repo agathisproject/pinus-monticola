@@ -13,7 +13,7 @@
 #include "esp_random.h"
 #include "esp_crc.h"
 
-#include "esp_platform.h"
+#include "base.h"
 
 #define TAG "hw-espnow"
 

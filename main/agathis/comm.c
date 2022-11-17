@@ -14,7 +14,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 
-#include "../hw/espnow.h"
+#include "../hw/platform_esp/espnow.h"
 #elif defined(__linux__)
 #include <dirent.h>
 #include <fcntl.h>

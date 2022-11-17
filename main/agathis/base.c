@@ -7,15 +7,15 @@
 #if defined(__AVR__)
 #include <avr/wdt.h>
 #elif defined(ESP_PLATFORM)
-#include "../hw/espnow.h"
-#include "../hw/esp_platform.h"
+#include "../hw/platform_esp/base.h"
+#include "../hw/platform_esp/espnow.h"
 #elif defined(__linux__)
 #include "../sim/state.h"
 #include "../sim/misc.h"
+#include "../hw/platform_sim/base.h"
 #endif
 
 #include "config.h"
-//#include "../hw/gpio.h"
 #include "../hw/storage.h"
 
 AG_MC_STATE_t MOD_STATE = {.ver = 1, .caps_hw_ext = 0, .caps_hw_int = 0, .caps_sw = 0,
@@ -152,16 +152,16 @@ void ag_upd_hw(void) {
     uint32_t led_code = 0;
 
     if (MOD_STATE.last_err != 0) {
-        led_code |= 0x00FF0000;
+        led_code |= 0x00FF0000U;
     } else {
-        led_code &= ~0x00FF0000;
+        led_code &= ~0x00FF0000U;
     }
 
     if (cnt_id_led > 0) {
-        led_code |= 0x000000FF;
+        led_code |= 0x000000FFU;
         cnt_id_led --;
     } else {
-        led_code &= ~0x000000FF;
+        led_code &= ~0x000000FFU;
     }
 
     gpio_RGB_send(led_code);

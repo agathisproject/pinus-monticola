@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "esp_platform.h"
+#include "base.h"
 
 #include "esp_log.h"
 #include "nvs_flash.h"

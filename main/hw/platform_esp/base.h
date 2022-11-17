@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ESP_PLATFORM_HDTCR4RCYNWCHYS4
-#define ESP_PLATFORM_HDTCR4RCYNWCHYS4
+#ifndef BASE_HDTCR4RCYNWCHYS4
+#define BASE_HDTCR4RCYNWCHYS4
 
 #include <stdint.h>
 
@@ -19,4 +19,4 @@ void gpio_init(void);
  */
 void gpio_RGB_send(uint32_t code);
 
-#endif /* ESP_PLATFORM_HDTCR4RCYNWCHYS4 */
+#endif /* BASE_HDTCR4RCYNWCHYS4 */

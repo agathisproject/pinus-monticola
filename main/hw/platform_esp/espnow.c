@@ -13,8 +13,6 @@
 #include "esp_random.h"
 #include "esp_crc.h"
 
-#include "base.h"
-
 #define TAG "hw-espnow"
 
 /* ESPNOW can work in both station and softap mode. It is configured in menuconfig. */

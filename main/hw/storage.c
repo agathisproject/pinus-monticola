@@ -9,7 +9,7 @@
 #if defined(ESP_PLATFORM)
 #include "nvs_flash.h"
 #elif defined(__linux__)
-#include "../sim/state.h"
+#include "platform_sim/state.h"
 #endif
 
 #include "../agathis/base.h"
@@ -19,7 +19,7 @@
 #define NVS_KEY "MOD_STATE"
 #endif
 
-void stor_restore_state(void) {
+void stor_RestoreState(void) {
 #if defined(ESP_PLATFORM)
     nvs_handle_t hndl_nvs;
     esp_err_t err;
@@ -64,8 +64,6 @@ void stor_restore_state(void) {
         free(buff);
         return;
     }
-    memcpy(((uint8_t *) &MOD_STATE), buff, bin_size);
-    free(buff);
     nvs_close(hndl_nvs);
 #else
     uint8_t *buff = (uint8_t *) malloc(AG_STORAGE_SIZE * sizeof (uint8_t));
@@ -93,23 +91,23 @@ void stor_restore_state(void) {
         free(buff);
         return;
     }
-
-    if (MOD_STATE.ver != buff[0]) {
-        printf("W (%s) OLD state detected\n", __func__);
-        free(buff);
-        return;
+#endif
+    if ((buff[0] == 0x00) || (buff[0] == 0xFF)) {
+        printf("W (%s) NO state - using defaults\n", __func__);
+    } else if (buff[0] == MOD_STATE.ver) {
+        memcpy(((uint8_t *) &MOD_STATE), buff, (sizeof (MOD_STATE) / sizeof (uint8_t)));
+        printf("I (%d) state restored\n", __LINE__);
+    } else {
+        printf("W (%s) DIFFERENT state - using defaults\n", __func__);
     }
-    memcpy(((uint8_t *) &MOD_STATE), buff, (sizeof (MOD_STATE) / sizeof (uint8_t)));
     free(buff);
 
     MOD_STATE.mfr_name[15] = 0x00;
     MOD_STATE.mfr_pn[15] = 0x00;
     MOD_STATE.mfr_sn[15] = 0x00;
-#endif
-    printf("I (%d) state restored\n", __LINE__);
 }
 
-void stor_save_state(void) {
+void stor_SaveState(void) {
     size_t state_size = sizeof (MOD_STATE) / sizeof (uint8_t);
     if (state_size > AG_STORAGE_SIZE) {
         printf("E (%s) state size TOO BIG\n", __func__);
@@ -175,6 +173,6 @@ void stor_save_state(void) {
     printf("I (%d) state saved\n", __LINE__);
 }
 
-void stor_erase_state(void) {
+void stor_EraseState(void) {
 
 }

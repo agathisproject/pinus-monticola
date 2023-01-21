@@ -9,67 +9,73 @@
 #if defined(ESP_PLATFORM)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
-#include "hw/platform_esp/base.h"
 #elif defined(__linux__)
-#include "hw/platform_sim/base.h"
-#include "sim/state.h"
+#include "hw/platform_sim/state.h"
 #endif
 
 #include "agathis/base.h"
 #include "agathis/comm.h"
 #include "cli/cli.h"
-#include "hw/misc.h"
+#include "cmd.h"
+#include "hw/platform.h"
 
-static void p_CLI_init_prompt(void) {
-    char prompt[CLI_PROMPT_SIZE];
-    uint32_t mac[2];
+static CLICmdDef_t p_cmd_root[3]  = {
+    {"info", "[mfg]", "show module info", &cmd_Info},
+    {"set",  "master", "change configuration values", &cmd_Set},
+    {"cfg", "[show|save]", "show/save configuration", &cmd_Cfg},
+};
+static CLICmdFolder_t p_f_root = {"", sizeof(p_cmd_root) / sizeof(p_cmd_root[0]), p_cmd_root,
+                                  NULL, NULL, NULL, NULL, NULL
+                                 };
 
-    get_HW_ID_compact(mac);
-#if defined(ESP_PLATFORM)
-    snprintf(prompt, CLI_PROMPT_SIZE, "[%06lx:%06lx]$ ", mac[1], mac[0]);
-#elif defined(__linux__)
-    snprintf(prompt, CLI_PROMPT_SIZE, "[%06x:%06x]$ ", mac[1], mac[0]);
-#endif
-    printf("press ? for help\n");
-    CLI_setPrompt(prompt);
+static CLICmdDef_t p_cmd_mod[5]  = {
+    {"info", "", "show modules", &cmd_ModInfo},
+    {"id", "", "identify module", &cmd_ModID},
+    {"reset", "", "reset module", &cmd_ModReset},
+    {"on", "", "power on module", &cmd_ModPowerOn},
+    {"off", "", "power off module", &cmd_ModPowerOff},
+};
+static CLICmdFolder_t p_f_mod = {"mod", sizeof(p_cmd_mod) / sizeof(p_cmd_mod[0]), p_cmd_mod,
+                                 &p_cmd_mod[0], NULL, NULL, NULL, NULL
+                                };
 
-    gpio_RGB_send(0);
+static void p_CLIInit(void) {
+    p_f_root.parent = &p_f_root;
+    p_f_root.child = &p_f_mod;
+
+    p_f_mod.parent = &p_f_root;
+
+    cmd_SetPrompt();
+    cli_Init(&p_f_root);
+
+    gpio_SetRGB(0);
 }
 
 #if defined(ESP_PLATFORM)
 void task_cli(void *pvParameter) {
-    uint8_t parseSts;
-
-    p_CLI_init_prompt();
+    p_CLIInit();
     while (1) {
-        printf("%s", CLI_getPrompt());
-        CLI_getCmd();
-        parseSts = CLI_parseCmd();
-        if (parseSts == 0) {
-            CLI_execute();
-        }
+        //printf("%s", CLI_getPrompt());
+        cli_Read();
+        cli_Parse();
+        cli_Execute();
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
 #elif defined(__linux__)
 void *task_cli (void *vargp) {
-    uint8_t parseSts = 1;
-
     if ((SIM_STATE.sim_flags & SIM_FLAG_NO_CONSOLE) != 0) {
         while (1) {
             sleep(1);
         }
     } else {
-        p_CLI_init_prompt();
+        p_CLIInit();
         while (1) {
-            printf("%s", CLI_getPrompt());
-            CLI_getCmd();
-            parseSts = CLI_parseCmd();
-            if (parseSts == 0) {
-                CLI_execute();
-            }
+            //printf("%s", cli_GetPrompt());
+            cli_Read();
+            cli_Parse();
+            cli_Execute();
         }
     }
 }

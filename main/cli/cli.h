@@ -4,46 +4,37 @@
 #define CLI_YP8GJVG3TCW7BWQW
 /** @file */
 
-#include <stdint.h>
-
 #include "cli_types.h"
 
 typedef struct {
-    CLI_FOLDER_t *folder;
+    CLICmdFolder_t *folder;
     char path[CLI_TREE_DEPTH_MAX][CLI_BASE_NAME_SIZE];
     uint8_t pathIdx;
 } CLI_ENV_t;
 
 /**
- * @return get CLI prompt
- */
-char * CLI_getPrompt(void);
-
-/**
  * @brief set CLI prompt
  */
-void CLI_setPrompt(const char *str);
+void cli_SetPrompt(const char *str);
 
 /**
- * @brief init CLI library
+ * @brief init CLI
  */
-void CLI_init(void);
+void cli_Init(CLICmdFolder_t *menu);
 
 /**
  * @brief get command from UART/stdin into the internal buffer
  */
-void CLI_getCmd(void);
+void cli_Read(void);
 
 /**
  * @brief parse command from internal buffer
- *
- * @return 0 if no errors
  */
-uint8_t CLI_parseCmd(void);
+void cli_Parse(void);
 
 /**
  * @brief execute command
  */
-void CLI_execute(void);
+void cli_Execute(void);
 
 #endif /* CLI_YP8GJVG3TCW7BWQW */

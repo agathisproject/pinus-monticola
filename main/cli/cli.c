@@ -5,228 +5,201 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "cmd.h"
-
-#if defined(__AVR__)
+#if defined(ARDUINO)
+#include "Arduino.h"
+#elif defined(__AVR__)
 #include "../mcc_generated_files/uart1.h"
+#endif
 
-uint8_t CLI_IsRxReady(void) {
+#define FLAG_READ   0x01
+#define FLAG_PARSED 0x02
+
+uint8_t p_IsRXReady(void) {
+#if defined(ARDUINO)
+    return Serial.available();
+#elif defined(__AVR__)
     return UART1_IsRxReady();
-}
-
-uint8_t CLI_GetChar(void) {
-    return (uint8_t) UART1_Read();
-}
 #elif defined(ESP_PLATFORM)
-uint8_t p_CLI_IsRxReady(void) {
     return 1;
-}
-
-uint8_t p_CLI_GetChar(void) {
-    return (uint8_t) getchar();
-}
 #elif defined(__linux__) || defined(__MINGW64__)
-uint8_t p_CLI_IsRxReady(void) {
     return 1;
+#endif
 }
 
-uint8_t p_CLI_GetChar(void) {
+uint8_t p_GetRxChar(void) {
+#if defined(ARDUINO)
+    return Serial.read();
+#elif defined(__AVR__)
+    return (uint8_t) UART1_Read();
+#elif defined(ESP_PLATFORM)
     return (uint8_t) getchar();
-}
+#elif defined(__linux__) || defined(__MINGW64__)
+    return (uint8_t) getchar();
 #endif
+}
 
-static char p_CLI_BUFF[CLI_BUFF_SIZE + 1] = { 0 };
-static char p_CLI_PROMPT[CLI_PROMPT_SIZE] = { 0 };
-static uint8_t p_no_cmd = 0;
-
-static CLI_PARSED_CMD_t p_PARSED_CMD = {"\0", 0, {"", "", "", ""}};
-
+static char p_cli_prompt[CLI_PROMPT_MAX_LEN] = "";
+static char p_cmd_buff[CLI_BUFF_SIZE] = "";
+static uint8_t p_cmd_len = 0;
+static uint8_t p_cmd_flags = 0;
+static CLICmdParsed_t p_cmd_parsed;
+static CLICmdFolder_t * p_cli_root;
 static CLI_ENV_t p_CLI_ENV;
+static uint8_t p_no_cmd_cnt = 0;
 
-char * CLI_getPrompt(void) {
-    return p_CLI_PROMPT;
+void cli_SetPrompt(const char *str) {
+    strncpy(p_cli_prompt, str, CLI_PROMPT_MAX_LEN);
 }
 
-void CLI_setPrompt(const char *str) {
-    strncpy(p_CLI_PROMPT, str, CLI_PROMPT_SIZE);
+static void p_cmd_init(void) {
+    memset(p_cmd_buff, 0x00, CLI_BUFF_SIZE);
+    p_cmd_len = 0;
+    p_cmd_flags = 0;
+
+    p_cmd_parsed.nTk = 0;
+    for (uint8_t i = 0; i < CLI_MAX_TOKENS; i ++) {
+        memset(p_cmd_parsed.tokens[i], 0x00, CLI_TOKEN_MAX_LEN);
+    }
 }
 
-static CLI_CMD_t p_cmd_root[3]  = {
-    {"info", "", "show module info", &cmd_info},
-    {"set",  "", "change configuration", &cmd_set},
-    {"save", "", "save configuration", &cmd_save},
-};
-static CLI_FOLDER_t p_f_root = {"", sizeof(p_cmd_root) / sizeof(p_cmd_root[0]), p_cmd_root,
-                                NULL, NULL, NULL, NULL, NULL
-                               };
+static void p_cli_clear(void) {
+    p_cmd_init();
 
-static CLI_CMD_t p_cmd_mod[5]  = {
-    {"info", "", "show modules", &cmd_mod_info},
-    {"id", "", "identify module", &cmd_mod_id},
-    {"reset", "", "reset module", &cmd_mod_reset},
-    {"on", "", "power on module", &cmd_mod_power_on},
-    {"off", "", "power off module", &cmd_mod_power_off},
-};
-static CLI_FOLDER_t p_f_mod = {"mod", sizeof(p_cmd_mod) / sizeof(p_cmd_mod[0]), p_cmd_mod,
-                               &p_cmd_mod[0], NULL, NULL, NULL, NULL
-                              };
-
-static CLI_FOLDER_t p_f_lcl = {"lcl", 0, NULL, NULL, NULL, NULL, NULL, NULL};
-
-#if MOD_HAS_PWR
-static CLI_CMD_t p_cmd_pwr[4]  = {
-    {"stats",  "", "show stats", &cmd_pwr_stats},
-    {"ctrl",   "", "show controls", &cmd_pwr_ctrl},
-    {"v5_src",  "[on|off]", "V5 source switch", &cmd_pwr_v5_src},
-    {"v5_load", "[on|off]", "V5 load switch", &cmd_pwr_v5_load},
-};
-static CLI_FOLDER_t p_f_pwr  = {"pwr", sizeof(p_cmd_pwr) / sizeof(p_cmd_pwr[0]), p_cmd_pwr,
-                                &p_cmd_pwr[0], NULL, NULL, NULL, NULL
-                               };
+#if defined(ARDUINO)
+    Serial.print("~# ");
 #else
-static CLI_FOLDER_t p_f_pwr  = {"pwr", 0, NULL, NULL, NULL, NULL, NULL, NULL};
+    printf("%s", p_cli_prompt);
 #endif
+}
 
-static CLI_FOLDER_t p_f_clk  = {"clk", 0, NULL, NULL, NULL, NULL, NULL, NULL};
-static CLI_FOLDER_t p_f_pps  = {"pps", 0, NULL, NULL, NULL, NULL, NULL, NULL};
-static CLI_FOLDER_t p_f_jtag = {"jtag", 0, NULL, NULL, NULL, NULL, NULL, NULL};
-static CLI_FOLDER_t p_f_usb  = {"usb", 0, NULL, NULL, NULL, NULL, NULL, NULL};
-static CLI_FOLDER_t p_f_pcie = {"pcie", 0, NULL, NULL, NULL, NULL, NULL, NULL};
+static void p_cli_error(CLIStatus_t err) {
+#if defined(ARDUINO)
+    Serial.println();
+    Serial.print("CLI error: ");
+    Serial.print(err, DEC);
+    Serial.println();
+#else
+    printf("\nCLI error: %d\n", err);
+#endif
+    p_cli_clear();
+}
 
-void CLI_init(void) {
-    unsigned int i = 0;
+void cli_Init(CLICmdFolder_t *menu) {
+    p_cli_root = menu;
 
-    p_f_root.parent = &p_f_root;
-    p_f_root.child = &p_f_lcl;
-
-    p_f_lcl.parent = &p_f_root;
-    p_f_lcl.right = &p_f_mod;
-    p_f_lcl.child = &p_f_pwr;
-
-    p_f_mod.parent = &p_f_root;
-    p_f_mod.left = &p_f_lcl;
-
-    p_f_pwr.parent = &p_f_lcl;
-    p_f_pwr.right = &p_f_clk;
-
-    p_f_clk.parent = &p_f_lcl;
-    p_f_clk.left = &p_f_pwr;
-    p_f_clk.right = &p_f_pps;
-
-    p_f_pps.parent = &p_f_lcl;
-    p_f_pps.left = &p_f_clk;
-    p_f_pps.right = &p_f_jtag;
-
-    p_f_jtag.parent = &p_f_lcl;
-    p_f_jtag.left = &p_f_pps;
-    p_f_jtag.right = &p_f_usb;
-
-    p_f_usb.parent = &p_f_lcl;
-    p_f_usb.left = &p_f_jtag;
-    p_f_usb.right = &p_f_pcie;
-
-    p_f_pcie.parent = &p_f_lcl;
-    p_f_pcie.left = &p_f_usb;
-
-    for (i = 0; i < CLI_TREE_DEPTH_MAX; i++) {
-        strncpy(p_CLI_ENV.path[i], "\0", CLI_BASE_NAME_SIZE);
+    for (unsigned int i = 0; i < CLI_TREE_DEPTH_MAX; i++) {
+        memset(p_CLI_ENV.path[i], 0x00, CLI_BASE_NAME_SIZE);
     }
     p_CLI_ENV.pathIdx = 0;
-    p_CLI_ENV.folder = &p_f_root;
+    p_CLI_ENV.folder = p_cli_root;
+
+    p_cli_clear();
 }
 
-void CLI_getCmd(void) {
-    uint8_t byteIn;
-    uint8_t idx = 0;
+void cli_Read(void) {
+    char ch;
 
-    strncpy(p_CLI_BUFF, "\0", (CLI_BUFF_SIZE + 1));
-    while (1) {
-        if (p_CLI_IsRxReady()) {
-            byteIn = p_CLI_GetChar();
-            //printf("DBG: %x\n", byteIn);
+    while (p_IsRXReady()) {
+        ch = (char) p_GetRxChar();
 
-            // NL or CR end the command
-            if ((byteIn == 10) || (byteIn == 13)) {
-                break;
+        if ((ch == 8) || (ch == 127)) { // backspace - is sometimes 127 in TTY
+            if (p_cmd_len > 0) {
+#if defined(ARDUINO)
+                Serial.write(ch);
+#elif defined(ESP_PLATFORM)
+                printf("%c", ch);
+#endif
+                p_cmd_len --;
+                p_cmd_buff[p_cmd_len] = 0;
             }
-            // BS removes last character from buffer
-            if (byteIn == 8) {
-                if (idx > 0) {
-                    idx --;
-                    p_CLI_BUFF[idx] = '\0';
-                }
-                continue;
-            }
-            // skip non-printable characters
-            if ((byteIn < 32) || (byteIn > 126)) {
-                continue;
-            }
-            // if buffer full skip adding
-            if (idx == CLI_BUFF_SIZE) {
-                continue;
-            }
-            p_CLI_BUFF[idx] = (char)byteIn;
-            idx ++;
-            p_CLI_BUFF[idx] = '\0';
         }
-    }
-}
 
-uint8_t CLI_parseCmd(void) {
-    strncpy(p_PARSED_CMD.cmd, "\0", CLI_WORD_SIZE);
-    p_PARSED_CMD.nParams = 0;
-    for (uint8_t i = 0; i < CLI_WORD_CNT; i++) {
-        strncpy(p_PARSED_CMD.params[i], "\0", CLI_WORD_SIZE);
-    }
-
-    //printf("DBG: parse ...\n");
-    uint8_t j = 0;
-    for (uint8_t i = 0; i < CLI_BUFF_SIZE; i ++) {
-        if (p_CLI_BUFF[i] == 32) {
-            p_PARSED_CMD.nParams ++;
-            j = 0;
-            continue;
-        }
-        if (p_CLI_BUFF[i] == 0) {
-            p_PARSED_CMD.nParams ++;
+        if ((ch == 10) || (ch == 13)) { // line-feed or carriage-return
+#if defined(ARDUINO)
+            Serial.println();
+#elif defined(ESP_PLATFORM)
+            printf("\n");
+#endif
+            p_cmd_flags |= FLAG_READ;
             break;
         }
 
-        if (j >= CLI_WORD_SIZE) {
-            printf("ERROR parsing (size)\n");
-            return 1;
-        }
-        if (p_PARSED_CMD.nParams >= CLI_WORD_CNT) {
-            printf("ERROR parsing (param)\n");
-            return 2;
-        }
-
-        if (p_PARSED_CMD.nParams == 0) {
-            p_PARSED_CMD.cmd[j] = p_CLI_BUFF[i];
-            j ++;
-            p_PARSED_CMD.cmd[j] = '\0';
-        } else {
-            p_PARSED_CMD.params[p_PARSED_CMD.nParams - 1][j] = p_CLI_BUFF[i];
-            j ++;
-            p_PARSED_CMD.params[p_PARSED_CMD.nParams - 1][j] = '\0';
+        if ((ch > 31) && (ch < 127)) { // printable ASCII
+#if defined(ARDUINO)
+            Serial.write(ch);
+#elif defined(ESP_PLATFORM)
+            printf("%c", ch);
+#endif
+            if (p_cmd_len < CLI_BUFF_SIZE) {
+                p_cmd_buff[p_cmd_len] = ch;
+                p_cmd_len ++;
+                if (p_cmd_len >= CLI_BUFF_SIZE) {
+                    p_cli_error(CLI_CMD_TOO_LONG);
+                }
+                p_cmd_buff[p_cmd_len] = 0;
+            }
         }
     }
-    if (p_PARSED_CMD.nParams > 0) {
-        p_PARSED_CMD.nParams --;
-    }
-    return 0;
 }
 
-CLI_CMD_RETURN_t p_help(void) {
+void cli_Parse(void) {
+    if ((p_cmd_flags & FLAG_READ) == 0) {
+        return;
+    }
+
+    uint8_t tkLen = 0;
+    for (uint8_t i = 0; i < p_cmd_len; i++) {
+        if (p_cmd_buff[i] == 32) { //space
+            if (tkLen != 0) {
+                p_cmd_parsed.nTk ++;
+                tkLen = 0;
+            }
+            if (p_cmd_parsed.nTk > CLI_MAX_TOKENS) {
+                p_cli_error(CLI_TOO_MANY_TOKENS);
+            }
+        } else {
+            p_cmd_parsed.tokens[p_cmd_parsed.nTk][tkLen] = p_cmd_buff[i];
+            tkLen ++;
+            if (tkLen >= CLI_TOKEN_MAX_LEN) {
+                p_cli_error(CLI_TOKEN_TOO_LONG);
+            }
+        }
+    }
+    if (tkLen > 0) {
+        p_cmd_parsed.nTk ++;
+    }
+    //Serial.print("DBG: parse ");
+    //Serial.println(p_cmd_parsed.nTk, DEC);
+    //printf("DBG: parse %d\n", p_cmd_parsed.nTk);
+    p_cmd_flags |= FLAG_PARSED;
+}
+
+CLIStatus_t p_no_cmd(void) {
+    if (p_CLI_ENV.folder->cmdDefault != NULL) {
+        return p_CLI_ENV.folder->cmdDefault->fptr(&p_cmd_parsed);
+    }
+    if (p_no_cmd_cnt == 4) {
+#if defined(ARDUINO)
+        Serial.println("press ? for help");
+#else
+        printf("press ? for help\n");
+#endif
+        p_no_cmd_cnt = 0;
+    } else {
+        p_no_cmd_cnt ++;
+    }
+    return CLI_NO_ERROR;
+}
+
+CLIStatus_t p_help(void) {
     printf("built-in commands:\n");
     printf("  pwd - show current path\n");
     printf("   ls - list possible commands\n");
     printf("   cd - change folder\n");
-
-    return CMD_DONE;
+    return CLI_NO_ERROR;
 }
 
-CLI_CMD_RETURN_t p_pwd(void) {
+CLIStatus_t p_pwd(void) {
     unsigned int i = 0;
 
     if (p_CLI_ENV.pathIdx == 0) {
@@ -237,105 +210,92 @@ CLI_CMD_RETURN_t p_pwd(void) {
         }
         printf("\n");
     }
-    return CMD_DONE;
+    return CLI_NO_ERROR;
 }
 
-CLI_CMD_RETURN_t p_ls(void) {
-    unsigned int i = 0;
-
-    for (i = 0; i < p_CLI_ENV.folder->nCmds; i ++) {
+CLIStatus_t p_ls(void) {
+    for (unsigned int i = 0; i < p_CLI_ENV.folder->nCmds; i ++) {
         printf("    %s - %s\n", p_CLI_ENV.folder->cmds[i].cmd,
                p_CLI_ENV.folder->cmds[i].cmdHelp);
     }
 
     if (p_CLI_ENV.folder->child != NULL) {
-        CLI_FOLDER_t *tmp = p_CLI_ENV.folder->child;
+        CLICmdFolder_t *tmp = p_CLI_ENV.folder->child;
         while (tmp != NULL) {
             printf("[+] %s\n", tmp->name);
             tmp = tmp->right;
         }
     }
-    return CMD_DONE;
+    return CLI_NO_ERROR;
 }
 
-CLI_CMD_RETURN_t p_cd(void) {
-    if (p_PARSED_CMD.nParams == 0) {
-        p_CLI_ENV.folder = &p_f_root;
+CLIStatus_t p_cd(void) {
+    if (p_cmd_parsed.nTk == 1) {
+        p_CLI_ENV.folder = p_cli_root;
         p_CLI_ENV.pathIdx = 0;
-        return CMD_DONE;
+        return CLI_NO_ERROR;
     }
 
-    if (p_PARSED_CMD.nParams > 1) {
-        return CMD_WRONG_N;
+    if (p_cmd_parsed.nTk > 3) {
+        return CLI_TOO_MANY_TOKENS;
     }
 
-    if (strncmp(p_PARSED_CMD.params[0], "..", 2) == 0) {
+    if (strncmp(p_cmd_parsed.tokens[1], "..", 2) == 0) {
         p_CLI_ENV.folder = p_CLI_ENV.folder->parent;
         p_CLI_ENV.pathIdx--;
-        return CMD_DONE;
+        return CLI_NO_ERROR;
     }
 
     if (p_CLI_ENV.folder->child == NULL) {
-        printf("UNKNOWN path: %s\n", p_PARSED_CMD.params[0]);
-        return CMD_WRONG_PARAM;
+        printf("UNKNOWN path: %s\n", p_cmd_parsed.tokens[1]);
+        return CLI_TOKEN_TOO_LONG;
     }
 
-    CLI_FOLDER_t *tmp = p_CLI_ENV.folder->child;
+    CLICmdFolder_t *tmp = p_CLI_ENV.folder->child;
     while (tmp != NULL) {
-        if (strncmp(p_PARSED_CMD.params[0], tmp->name, CLI_BASE_NAME_SIZE) == 0) {
+        if (strncmp(p_cmd_parsed.tokens[1], tmp->name, CLI_BASE_NAME_SIZE) == 0) {
             p_CLI_ENV.folder = tmp;
             strncpy(p_CLI_ENV.path[p_CLI_ENV.pathIdx++], tmp->name, CLI_BASE_NAME_SIZE);
-            return CMD_DONE;
+            return CLI_NO_ERROR;
         }
         tmp = tmp->right;
     }
-    printf("UNKNOWN path: %s\n", p_PARSED_CMD.params[0]);
-    return CMD_DONE;
+    printf("UNKNOWN path: %s\n", p_cmd_parsed.tokens[1]);
+    return CLI_NO_ERROR;
 }
 
-void CLI_execute(void) {
-    unsigned int i = 0;
-    CLI_CMD_RETURN_t cmdRet = CMD_NOT_FOUND;
+void cli_Execute(void) {
+    if ((p_cmd_flags & FLAG_PARSED) == 0) {
+        return;
+    }
+    //printf("DBG: execute %s (%d tokens) %s\n", p_cmd_parsed.tokens[0], p_cmd_parsed.nTk, p_CLI_ENV.folder->name);
 
-    //printf("DBG: execute %s (%d params) %d\n", p_PARSED_CMD.cmd, p_PARSED_CMD.nParams, p_CLI_ENV.folder);
-    printf("\n");
-    if (strlen(p_PARSED_CMD.cmd) == 0) {
-        if (p_CLI_ENV.folder->cmdDefault == NULL) {
-            if (p_no_cmd == 4) {
-                printf("press ? for help\n");
-                p_no_cmd = 0;
-            } else {
-                p_no_cmd ++;
-            }
-            cmdRet = CMD_DONE;
-        } else {
-            cmdRet = p_CLI_ENV.folder->cmdDefault->fptr(&p_PARSED_CMD);
-        }
-    } else if (strncmp(p_PARSED_CMD.cmd, "?", 1) == 0) {
-        cmdRet = p_help();
-    } else if (strncmp(p_PARSED_CMD.cmd, "pwd", 3) == 0) {
-        cmdRet = p_pwd();
-    } else if (strncmp(p_PARSED_CMD.cmd, "ls", 2) == 0) {
-        cmdRet = p_ls();
-    } else if (strncmp(p_PARSED_CMD.cmd, "cd", 2) == 0) {
-        cmdRet = p_cd();
+    CLIStatus_t sts = CLI_CMD_NOT_FOUND;
+    if (p_cmd_parsed.nTk == 0) {
+        sts = p_no_cmd();
+    } else if (strncmp(p_cmd_parsed.tokens[0], "?", 1) == 0) {
+        sts = p_help();
+    } else if (strncmp(p_cmd_parsed.tokens[0], "help", 4) == 0) {
+        sts = p_help();
+    } else if (strncmp(p_cmd_parsed.tokens[0], "pwd", 3) == 0) {
+        sts = p_pwd();
+    } else if (strncmp(p_cmd_parsed.tokens[0], "ls", 2) == 0) {
+        sts = p_ls();
+    } else if (strncmp(p_cmd_parsed.tokens[0], "cd", 2) == 0) {
+        sts = p_cd();
     } else {
-        for (i = 0; i < p_CLI_ENV.folder->nCmds; i++) {
-            if (strncmp(p_PARSED_CMD.cmd, p_CLI_ENV.folder->cmds[i].cmd,
-                        CLI_WORD_SIZE) == 0) {
-                cmdRet = p_CLI_ENV.folder->cmds[i].fptr(&p_PARSED_CMD);
+        for (unsigned int i = 0; i < p_CLI_ENV.folder->nCmds; i++) {
+            if (strncmp(p_cmd_parsed.tokens[0], p_CLI_ENV.folder->cmds[i].cmd,
+                        CLI_TOKEN_MAX_LEN) == 0) {
+                sts = p_CLI_ENV.folder->cmds[i].fptr(&p_cmd_parsed);
                 break;
             }
         }
     }
 
-    if (cmdRet == CMD_NOT_FOUND) {
-        printf("UNRECOGNIZED command\n");
-    } else if (cmdRet == CMD_WRONG_N) {
-        printf("WRONG argument count\n");
-        //printf("  %s %s\n", p_CLI_ENV.folder->cmds[i].cmd, p_CLI_ENV.folder->cmds[i].argDesc);
-    } else if (cmdRet == CMD_WRONG_PARAM) {
-        printf("WRONG arguments\n");
-        //printf("  %s %s\n", p_CLI_ENV.folder->cmds[i].cmd, p_CLI_ENV.folder->cmds[i].argDesc);
+    if (sts != CLI_NO_ERROR) {
+        p_cli_error(sts);
+    } else {
+        p_cli_clear();
     }
 }

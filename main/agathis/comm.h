@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-#define AG_FRAME_LEN            16
+#define AG_FRAME_DATA_LEN       16
 #define AG_FRAME_FLAG_VALID     0x01
 
 typedef struct {

@@ -22,14 +22,14 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "../sim/state.h"
+#include "../hw/platform_sim/state.h"
 #endif
 
 #include "base.h"
-#include "../hw/misc.h"
+#include "../hw/platform.h"
 
-static AG_FRAME_L0 p_tx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_LEN, NULL};
-static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_LEN, NULL};
+static AG_FRAME_L0 p_tx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_DATA_LEN, NULL};
+static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, 0, AG_FRAME_DATA_LEN, NULL};
 
 int ag_comm_is_frame_master(AG_FRAME_L0 *frame) {
     for (int i = 0; i < AG_MC_MAX_CNT; i++) {
@@ -96,7 +96,7 @@ static void p_mq_rx(union sigval sv) {
     //printf("DBG RX@%d %zd bytes\n", SIM_STATE.id, nb_rx);
     //printf("DBG RX@%d dst: %02x:%02x:%02x:%02x:%02x:%02x\n", SIM_STATE.id, buff[5], buff[4], buff[3], buff[2], buff[1], buff[0]);
     //printf("DBG RX@%d src: %02x:%02x:%02x:%02x:%02x:%02x\n", SIM_STATE.id, buff[11], buff[10], buff[9], buff[8], buff[7], buff[6]);
-    if ((nb_rx - 12) != AG_FRAME_LEN) {
+    if ((nb_rx - 12) != AG_FRAME_DATA_LEN) {
         printf("INCORRECT number of bytes RX\n");
         free(buff);
         p_mq_notify();
@@ -194,7 +194,7 @@ int ag_comm_tx(AG_FRAME_L0 *frame) {
 #elif defined(__linux__)
     char mq_name[SIM_PATH_LEN] = "";
     char dst_name[SIM_PATH_LEN] = "";
-    char *send_data = (char *) malloc((AG_FRAME_LEN + 12) * sizeof(char));
+    char *send_data = (char *) malloc((AG_FRAME_DATA_LEN + 12) * sizeof(char));
 
     if (send_data == NULL) {
         printf("%s - CANNOT malloc\n", __func__);
@@ -246,7 +246,8 @@ int ag_comm_tx(AG_FRAME_L0 *frame) {
         for (int i = 0; i < frame->nb; i++) {
             send_data[i + 12] = (char) frame->data[i];
         }
-        if (mq_send(queue, (const char *) send_data, (AG_FRAME_LEN + 12), 0) == -1) {
+        if (mq_send(queue, (const char *) send_data, (AG_FRAME_DATA_LEN + 12),
+                    0) == -1) {
             perror("CANNOT send msg");
             continue;
         }
@@ -272,7 +273,7 @@ AG_FRAME_L0 *ag_comm_get_tx_frame(void) {
 #endif
     }
 
-    get_HW_ID_compact(my_mac);
+    hw_GetIDCompact(my_mac);
     p_tx_frame.src_mac[0] = my_mac[0];
     p_tx_frame.src_mac[1] = my_mac[1];
     memset(p_tx_frame.data, 0, p_tx_frame.nb * sizeof (uint8_t));

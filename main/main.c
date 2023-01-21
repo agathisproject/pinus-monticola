@@ -9,31 +9,27 @@
 
 #include "tasks.h"
 #include "agathis/base.h"
-#include "cli/cli.h"
-#include "hw/platform_esp/base.h"
-#include "hw/platform_esp/espnow.h"
+#include "hw/platform.h"
 
 void app_main(void) {
     char *appName = pcTaskGetName(NULL);
     ESP_LOGI(appName, "start");
 
-    nvs_init();
-    gpio_init();
+    platform_init();
     ag_init();
-    CLI_init();
 
     xTaskCreate(task_cli, "task_CLI", 2048, NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(task_rf, "task_RF", 4096, NULL, (tskIDLE_PRIORITY + 2), NULL);
 
 //    vTaskDelay(10 / portTICK_PERIOD_MS);
 //    while (1) {
-//        gpio_RGB_send(0x00000000);
+//        gpio_SetRGB(0x00000000);
 //        vTaskDelay(1000 / portTICK_PERIOD_MS);
-//        gpio_RGB_send(0x0000FF00);
+//        gpio_SetRGB(0x0000FF00);
 //        vTaskDelay(1000 / portTICK_PERIOD_MS);
-//        gpio_RGB_send(0x000000FF);
+//        gpio_SetRGB(0x000000FF);
 //        vTaskDelay(1000 / portTICK_PERIOD_MS);
-//        gpio_RGB_send(0x00FF0000);
+//        gpio_SetRGB(0x00FF0000);
 //        vTaskDelay(1000 / portTICK_PERIOD_MS);
 //    }
 }

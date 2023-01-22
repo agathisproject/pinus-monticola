@@ -105,9 +105,9 @@ void cli_Read(void) {
         if ((ch == 8) || (ch == 127)) { // backspace - is sometimes 127 in TTY
             if (p_cmd_len > 0) {
 #if defined(ARDUINO)
-                Serial.write(ch);
+                Serial.write(8);
 #elif defined(ESP_PLATFORM)
-                printf("%c", ch);
+                printf("%c %c", 8, 8);
 #endif
                 p_cmd_len --;
                 p_cmd_buff[p_cmd_len] = 0;
@@ -215,7 +215,8 @@ CLIStatus_t p_pwd(void) {
 
 CLIStatus_t p_ls(void) {
     for (unsigned int i = 0; i < p_CLI_ENV.folder->nCmds; i ++) {
-        printf("    %s - %s\n", p_CLI_ENV.folder->cmds[i].cmd,
+        printf("    %s %s - %s\n", p_CLI_ENV.folder->cmds[i].cmd,
+               p_CLI_ENV.folder->cmds[i].argDesc,
                p_CLI_ENV.folder->cmds[i].cmdHelp);
     }
 

@@ -55,9 +55,9 @@ static rmt_bytes_encoder_config_t bytes_encoder_config = {
 #endif
 
 static void p_RGB_init(void) {
-    ESP_ERROR_CHECK(rmt_new_tx_channel(&led_ch_config, &led_ch_hndl));
-    ESP_ERROR_CHECK(rmt_new_bytes_encoder(&bytes_encoder_config, &led_enc_hndl));
-    ESP_ERROR_CHECK(rmt_enable(led_ch_hndl));
+    ESP_ERROR_CHECK( rmt_new_tx_channel(&led_ch_config, &led_ch_hndl) );
+    ESP_ERROR_CHECK( rmt_new_bytes_encoder(&bytes_encoder_config, &led_enc_hndl) );
+    ESP_ERROR_CHECK( rmt_enable(led_ch_hndl) );
 }
 
 static void p_gpio_init(void) {
@@ -72,8 +72,8 @@ static temperature_sensor_config_t temp_sensor = {
 };
 
 static void p_temp_init(void) {
-    ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor, &temp_handle));
-    ESP_ERROR_CHECK(temperature_sensor_enable(temp_handle));
+    ESP_ERROR_CHECK( temperature_sensor_install(&temp_sensor, &temp_handle) );
+    ESP_ERROR_CHECK( temperature_sensor_enable(temp_handle) );
     ESP_LOGI(TAG, "temperature sensor init done");
 }
 
@@ -86,7 +86,7 @@ void platform_init(void) {
 void hw_GetID(uint8_t *mac) {
     uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-    ESP_ERROR_CHECK(esp_efuse_mac_get_default(buff));
+    ESP_ERROR_CHECK( esp_efuse_mac_get_default(buff) );
     for (int i = 0; i < 6; i++) {
         mac[0] = buff[5 - i];
     }
@@ -95,7 +95,7 @@ void hw_GetID(uint8_t *mac) {
 void hw_GetIDCompact(uint32_t *mac) {
     uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-    ESP_ERROR_CHECK(esp_efuse_mac_get_default(buff));
+    ESP_ERROR_CHECK( esp_efuse_mac_get_default(buff) );
     mac[1] = ((uint32_t) buff[0] << 16) | ((uint32_t) buff[1] << 8) | buff[2];
     mac[0] = ((uint32_t) buff[3] << 16) | ((uint32_t) buff[4] << 8) | buff[5];
 }
@@ -104,14 +104,14 @@ void gpio_SetRGB(uint32_t code) {
 #if CONFIG_LED_RGB_PART_SK68
     //ESP_LOGI(TAG, "%#010x", code);
     uint8_t data[3] = {(uint8_t) ((code >> 8) & 0xFF), (uint8_t) ((code >> 16) & 0xFF), (uint8_t) (code & 0xFF)};
-    ESP_ERROR_CHECK(rmt_transmit(led_ch_hndl, led_enc_hndl, data, 3,
-                                 &led_tx_config));
+    ESP_ERROR_CHECK( rmt_transmit(led_ch_hndl, led_enc_hndl, data, 3,
+                                  &led_tx_config) );
 #endif
 }
 
 float hw_GetTemperature(void) {
     float tmp;
 
-    ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_handle, &tmp));
+    ESP_ERROR_CHECK( temperature_sensor_get_celsius(temp_handle, &tmp) );
     return tmp;
 }

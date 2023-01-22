@@ -48,6 +48,13 @@ typedef struct {
 
 extern AG_RMT_MC_STATE_t REMOTE_MODS[AG_MC_MAX_CNT];
 
+typedef struct {
+    uint32_t tx_cnt;
+    uint32_t rx_cnt;
+} AGLocalStats_t;
+
+extern AGLocalStats_t MOD_STATS;
+
 void ag_init(void);
 
 void ag_reset(void);

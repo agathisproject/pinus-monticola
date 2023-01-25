@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "esp_chip_info.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "nvs_flash.h"
@@ -77,10 +79,86 @@ static void p_temp_init(void) {
     ESP_LOGI(TAG, "temperature sensor init done");
 }
 
-void platform_init(void) {
+void platform_Init(void) {
     p_nvs_init();
     p_gpio_init();
     p_temp_init();
+}
+
+void platform_Show(void) {
+    esp_chip_info_t tmp;
+
+    esp_chip_info(&tmp);
+    printf("platform: ");
+    switch (tmp.model) {
+        case CHIP_ESP32S2: {
+            printf("ESP32-S2");
+            break;
+        }
+        default: {
+            printf("%d (\?\?\?)", tmp.model);
+            break;
+        }
+    }
+    printf(", rev %.2f", (tmp.revision / 100.0));
+    printf(", %d core(s)\n", tmp.cores);
+
+    printf("reset reason: ");
+    switch (esp_reset_reason()) {
+        case ESP_RST_UNKNOWN: {
+            printf("unknown");
+            break;
+        }
+        case ESP_RST_POWERON: {
+            printf("power-on");
+            break;
+        }
+        case ESP_RST_EXT: {
+            printf("external");
+            break;
+        }
+        case ESP_RST_SW: {
+            printf("SW");
+            break;
+        }
+        case ESP_RST_PANIC: {
+            printf("panic");
+            break;
+        }
+        case ESP_RST_INT_WDT: {
+            printf("interrupt WDT");
+            break;
+        }
+        case ESP_RST_TASK_WDT: {
+            printf("task WDT");
+            break;
+        }
+        case ESP_RST_WDT: {
+            printf("other WDT");
+            break;
+        }
+        case ESP_RST_DEEPSLEEP: {
+            printf("deep sleep");
+            break;
+        }
+        case ESP_RST_BROWNOUT: {
+            printf("brown-out");
+            break;
+        }
+        case ESP_RST_SDIO: {
+            printf("SDIO");
+            break;
+        }
+        default: {
+            printf("\?\?\?");
+            break;
+        }
+    }
+    printf("\n");
+}
+
+void hw_Reset(void) {
+    esp_restart();
 }
 
 void hw_GetID(uint8_t *mac) {

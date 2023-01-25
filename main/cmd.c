@@ -21,35 +21,36 @@ void cmd_SetPrompt(void) {
     hw_GetIDCompact(mac);
 #if defined(ESP_PLATFORM)
     snprintf(prompt, CLI_PROMPT_MAX_LEN, "[%06lx:%06lx]%c ", mac[1], mac[0],
-             ((MOD_STATE.caps_sw && AG_CAP_SW_TMC) ? '#' : '$'));
+             ((g_MCConfig.capsSW && AG_CAP_SW_TMC) ? '#' : '$'));
 #elif defined(__linux__)
     snprintf(prompt, CLI_PROMPT_MAX_LEN, "[%06x:%06x]%c ", mac[1], mac[0],
-             ((MOD_STATE.caps_sw && AG_CAP_SW_TMC) ? '#' : '$'));
+             ((g_MCConfig.capsSW && AG_CAP_SW_TMC) ? '#' : '$'));
 #endif
     cli_SetPrompt(prompt);
 }
 
 CLIStatus_t cmd_Info(CLICmdParsed_t *cmdp) {
     if (cmdp->nTk == 1) {
-        printf("error = %d\n", MOD_STATE.last_err);
-        printf("temp = %.2f C\n", hw_GetTemperature());
+        printf("error: %d\n", g_MCState.lastErr);
+#if defined(ESP_PLATFORM)
+        printf("TX/RX pkts.: %lu/%lu\n", g_MCStats.txCnt, g_MCStats.rxCnt);
+#elif defined(__linux__)
+        printf("TX/RX pkts.: %u/%u\n", g_MCStats.txCnt, g_MCStats.rxCnt);
+#endif
+        printf("temp: %.2f C\n", hw_GetTemperature());
         return CLI_NO_ERROR;
     } else if (cmdp->nTk == 2) {
-        if (strncmp(cmdp->tokens[1], "mfg", 3) == 0) {
-            printf("MFR_NAME = %s\n", MOD_STATE.mfr_name);
-            printf("MFR_PN = %s\n", MOD_STATE.mfr_pn);
-            printf("MFR_SN = %s\n", MOD_STATE.mfr_sn);
+        if (strncmp(cmdp->tokens[1], "hw", 2) == 0) {
+            platform_Show();
+        } else if (strncmp(cmdp->tokens[1], "sw", 2) == 0) {
+            printf("APP_NAME: %s\n", APP_NAME);
+            printf("APP_VER: %d\n", 0);
         } else {
             return CLI_CMD_PARAMS_ERROR;
         }
         return CLI_NO_ERROR;
     }
     return CLI_CMD_PARAMS_ERROR;
-}
-
-CLIStatus_t cmd_Stats(CLICmdParsed_t *cmdp) {
-    printf("TX/RX pkts.: %lu/%lu\n", MOD_STATS.tx_cnt, MOD_STATS.rx_cnt);
-    return CLI_NO_ERROR;
 }
 
 CLIStatus_t cmd_Set(CLICmdParsed_t *cmdp) {
@@ -59,9 +60,9 @@ CLIStatus_t cmd_Set(CLICmdParsed_t *cmdp) {
 
     if (strncmp(cmdp->tokens[1], "master", 6) == 0) {
         if (strncmp(cmdp->tokens[2], "on", 2) == 0) {
-            MOD_STATE.caps_sw |= AG_CAP_SW_TMC;
+            g_MCConfig.capsSW |= AG_CAP_SW_TMC;
         } else {
-            MOD_STATE.caps_sw &= (uint8_t) (~AG_CAP_SW_TMC);
+            g_MCConfig.capsSW &= (uint8_t) (~AG_CAP_SW_TMC);
         }
         cmd_SetPrompt();
         return CLI_NO_ERROR;
@@ -75,8 +76,10 @@ CLIStatus_t cmd_Cfg(CLICmdParsed_t *cmdp) {
     }
 
     if (strncmp(cmdp->tokens[1], "show", 4) == 0) {
-        printf("caps = %#04x/%#04x/%#04x\n", MOD_STATE.caps_hw_ext,
-               MOD_STATE.caps_hw_int, MOD_STATE.caps_sw);
+        printf("caps = %#04x/%#04x\n", g_MCConfig.capsHW, g_MCConfig.capsSW);
+        printf("MFR_NAME = %s\n", g_MCConfig.mfrName);
+        printf("MFR_PN = %s\n", g_MCConfig.mfrPN);
+        printf("MFR_SN = %s\n", g_MCConfig.mfrSN);
         return CLI_NO_ERROR;
     } else if (strncmp(cmdp->tokens[1], "save", 4) == 0) {
         stor_SaveState();
@@ -94,23 +97,27 @@ CLIStatus_t cmd_ModInfo(CLICmdParsed_t *cmdp) {
     }
 
     for (int i = 0; i < AG_MC_MAX_CNT; i ++) {
-        if (REMOTE_MODS[i].last_seen == -1) {
+        if (g_RemoteMCs[i].lastSeen == -1) {
             continue;
         }
-        if ((REMOTE_MODS[i].caps & AG_CAP_SW_TMC) != 0) {
+        if ((g_RemoteMCs[i].capsSW & AG_CAP_SW_TMC) != 0) {
             printf("%2d - %06x:%06x M (%ds)\n", i,
-                   (unsigned int) REMOTE_MODS[i].mac[1], (unsigned int) REMOTE_MODS[i].mac[0],
-                   REMOTE_MODS[i].last_seen);
+                   (unsigned int) g_RemoteMCs[i].mac[1], (unsigned int) g_RemoteMCs[i].mac[0],
+                   g_RemoteMCs[i].lastSeen);
         } else  {
             printf("%2d - %06x:%06x (%ds)\n", i,
-                   (unsigned int) REMOTE_MODS[i].mac[1], (unsigned int) REMOTE_MODS[i].mac[0],
-                   REMOTE_MODS[i].last_seen);
+                   (unsigned int) g_RemoteMCs[i].mac[1], (unsigned int) g_RemoteMCs[i].mac[0],
+                   g_RemoteMCs[i].lastSeen);
         }
     }
     return CLI_NO_ERROR;
 }
 
 CLIStatus_t cmd_ModLed(CLICmdParsed_t *cmdp) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) == 0) {
+        printf("E (%d) ONLY master can do this\n", __LINE__);
+        return CLI_CMD_FAIL;
+    }
     if (cmdp->nTk != 2) {
         return CLI_CMD_PARAMS_ERROR;
     }
@@ -120,7 +127,7 @@ CLIStatus_t cmd_ModLed(CLICmdParsed_t *cmdp) {
         printf("INCORRECT id\n");
         return CLI_NO_ERROR;
     }
-    if (REMOTE_MODS[mc_id].last_seen == -1) {
+    if (g_RemoteMCs[mc_id].lastSeen == -1) {
         printf("CANNOT send message to %d\n", mc_id);
         return CLI_NO_ERROR;
     }
@@ -131,8 +138,8 @@ CLIStatus_t cmd_ModLed(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    frame->dst_mac[1] = REMOTE_MODS[mc_id].mac[1];
-    frame->dst_mac[0] = REMOTE_MODS[mc_id].mac[0];
+    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
     frame->data[0] = AG_FRM_PROTO_VER1;
     agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
     agComm_SetFrameCmd(AG_FRM_CMD_ID, frame);
@@ -141,6 +148,10 @@ CLIStatus_t cmd_ModLed(CLICmdParsed_t *cmdp) {
 }
 
 CLIStatus_t cmd_ModReset(CLICmdParsed_t *cmdp) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) == 0) {
+        printf("E (%d) ONLY master can do this\n", __LINE__);
+        return CLI_CMD_FAIL;
+    }
     if (cmdp->nTk != 2) {
         return CLI_CMD_PARAMS_ERROR;
     }
@@ -150,7 +161,7 @@ CLIStatus_t cmd_ModReset(CLICmdParsed_t *cmdp) {
         printf("INCORRECT id\n");
         return CLI_NO_ERROR;
     }
-    if (REMOTE_MODS[mc_id].last_seen == -1) {
+    if (g_RemoteMCs[mc_id].lastSeen == -1) {
         printf("CANNOT send message to %d\n", mc_id);
         return CLI_NO_ERROR;
     }
@@ -161,8 +172,8 @@ CLIStatus_t cmd_ModReset(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    frame->dst_mac[1] = REMOTE_MODS[mc_id].mac[1];
-    frame->dst_mac[0] = REMOTE_MODS[mc_id].mac[0];
+    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
     frame->data[0] = AG_FRM_PROTO_VER1;
     agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
     agComm_SetFrameCmd(AG_FRM_CMD_RESET, frame);
@@ -171,6 +182,10 @@ CLIStatus_t cmd_ModReset(CLICmdParsed_t *cmdp) {
 }
 
 CLIStatus_t cmd_ModPowerOn(CLICmdParsed_t *cmdp) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) == 0) {
+        printf("E (%d) ONLY master can do this\n", __LINE__);
+        return CLI_CMD_FAIL;
+    }
     if (cmdp->nTk != 2) {
         return CLI_CMD_PARAMS_ERROR;
     }
@@ -180,7 +195,7 @@ CLIStatus_t cmd_ModPowerOn(CLICmdParsed_t *cmdp) {
         printf("INCORRECT id\n");
         return CLI_NO_ERROR;
     }
-    if (REMOTE_MODS[mc_id].last_seen == -1) {
+    if (g_RemoteMCs[mc_id].lastSeen == -1) {
         printf("CANNOT send message to %d\n", mc_id);
         return CLI_NO_ERROR;
     }
@@ -191,8 +206,8 @@ CLIStatus_t cmd_ModPowerOn(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    frame->dst_mac[1] = REMOTE_MODS[mc_id].mac[1];
-    frame->dst_mac[0] = REMOTE_MODS[mc_id].mac[0];
+    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
     frame->data[0] = AG_FRM_PROTO_VER1;
     agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
     agComm_SetFrameCmd(AG_FRM_CMD_POWER_ON, frame);
@@ -201,6 +216,10 @@ CLIStatus_t cmd_ModPowerOn(CLICmdParsed_t *cmdp) {
 }
 
 CLIStatus_t cmd_ModPowerOff(CLICmdParsed_t *cmdp) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) == 0) {
+        printf("E (%d) ONLY master can do this\n", __LINE__);
+        return CLI_CMD_FAIL;
+    }
     if (cmdp->nTk != 2) {
         return CLI_CMD_PARAMS_ERROR;
     }
@@ -210,7 +229,7 @@ CLIStatus_t cmd_ModPowerOff(CLICmdParsed_t *cmdp) {
         printf("INCORRECT id\n");
         return CLI_NO_ERROR;
     }
-    if (REMOTE_MODS[mc_id].last_seen == -1) {
+    if (g_RemoteMCs[mc_id].lastSeen == -1) {
         printf("CANNOT send message to %d\n", mc_id);
         return CLI_NO_ERROR;
     }
@@ -221,8 +240,8 @@ CLIStatus_t cmd_ModPowerOff(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    frame->dst_mac[1] = REMOTE_MODS[mc_id].mac[1];
-    frame->dst_mac[0] = REMOTE_MODS[mc_id].mac[0];
+    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
     frame->data[0] = AG_FRM_PROTO_VER1;
     agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
     agComm_SetFrameCmd(AG_FRM_CMD_POWER_OFF, frame);
@@ -231,6 +250,10 @@ CLIStatus_t cmd_ModPowerOff(CLICmdParsed_t *cmdp) {
 }
 
 CLIStatus_t cmd_ModSpeed(CLICmdParsed_t *cmdp) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) == 0) {
+        printf("E (%d) ONLY master can do this\n", __LINE__);
+        return CLI_CMD_FAIL;
+    }
     if (cmdp->nTk != 2) {
         return CLI_CMD_PARAMS_ERROR;
     }
@@ -240,7 +263,7 @@ CLIStatus_t cmd_ModSpeed(CLICmdParsed_t *cmdp) {
         printf("INCORRECT id\n");
         return CLI_NO_ERROR;
     }
-    if (REMOTE_MODS[mc_id].last_seen == -1) {
+    if (g_RemoteMCs[mc_id].lastSeen == -1) {
         printf("CANNOT send message to %d\n", mc_id);
         return CLI_NO_ERROR;
     }
@@ -255,8 +278,8 @@ CLIStatus_t cmd_ModSpeed(CLICmdParsed_t *cmdp) {
             printf("%s - CANNOT get TX frame\n", __func__);
             continue;
         }
-        frame->dst_mac[1] = REMOTE_MODS[mc_id].mac[1];
-        frame->dst_mac[0] = REMOTE_MODS[mc_id].mac[0];
+        frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+        frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
         frame->data[0] = AG_FRM_PROTO_VER1;
         agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
         agComm_SetFrameCmd(AG_FRM_CMD_PING, frame);

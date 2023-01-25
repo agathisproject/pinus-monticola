@@ -4,9 +4,7 @@
 
 #include <stdio.h>
 
-#if defined(__AVR__)
-#include <avr/wdt.h>
-#elif defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
 #include "../hw/platform_esp/espnow.h"
 #elif defined(__linux__)
 #include "../hw/platform_sim/state.h"
@@ -16,117 +14,108 @@
 #include "../hw/storage.h"
 #include "../hw/platform.h"
 
-AG_MC_STATE_t MOD_STATE = {.ver = 1, .caps_hw_ext = 0, .caps_hw_int = 0, .caps_sw = 0,
-                           .last_err = 0, .type = 0, .tbd = 0xFF,
-                           .mfr_name = "", .mfr_pn = "", .mfr_sn = "",
-                           .i5_nom = 0.1f,  .i5_cutoff = 0.12f, .i3_nom = 1.0f, .i3_cutoff = 1.5f,
-                           .crc = 0xdeadbeef,
-                          };
+AGLclConfig_t g_MCConfig = {.ver = 1, .capsHW = 0, .capsSW = 0,
+                            .type = 0, .mfrName = "", .mfrPN = "", .mfrSN = "",
+                            .crc = 0xdeadbeef,
+                           };
 
-AG_RMT_MC_STATE_t REMOTE_MODS[AG_MC_MAX_CNT] = {
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
-    {.mac = {0, 0}, .caps = 0, .last_err = 0, .last_seen = -1},
+AGLclState_t g_MCState = {.lastErr = AG_ERR_NONE};
+
+AGLclStats_t g_MCStats = {0, 0};
+
+AGRmtState_t g_RemoteMCs[AG_MC_MAX_CNT] = {
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
+    {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
 };
-
-AGLocalStats_t MOD_STATS = {0, 0};
 
 static uint8_t cnt_id_led = 0;
 
-void ag_init(void) {
+void ag_Init(void) {
     stor_RestoreState();
-    MOD_STATE.last_err = AG_ERR_NONE;
+    g_MCState.lastErr = AG_ERR_NONE;
 }
 
-void ag_reset(void) {
-#if defined(__AVR__)
-    printf("reset\n");
-    wdt_enable(WDTO_15MS);
-#elif defined(__linux__)
-    printf("RESET !!!\n");
-#endif
-}
-
-void ag_add_remote_mod(const uint32_t *mac, uint8_t caps) {
+void ag_AddRemoteMCInfo(const uint32_t *mac, uint8_t caps) {
     int idx_free = -1;
     for (int i = 0 ; i < AG_MC_MAX_CNT; i ++) {
-        if ((REMOTE_MODS[i].last_seen == -1) && (idx_free == -1)) {
+        if ((g_RemoteMCs[i].lastSeen == -1) && (idx_free == -1)) {
             idx_free = i;
         }
-        if ((REMOTE_MODS[i].mac[0] == mac[0]) && (REMOTE_MODS[i].mac[1] == mac[1])) {
-            REMOTE_MODS[i].caps = caps;
-            REMOTE_MODS[i].last_seen = 0;
+        if ((g_RemoteMCs[i].mac[0] == mac[0]) && (g_RemoteMCs[i].mac[1] == mac[1])) {
+            g_RemoteMCs[i].capsSW = caps;
+            g_RemoteMCs[i].lastSeen = 0;
             return;
         }
     }
 
     if (idx_free >= 0) {
-        REMOTE_MODS[idx_free].mac[1] = mac[1];
-        REMOTE_MODS[idx_free].mac[0] = mac[0];
-        REMOTE_MODS[idx_free].caps = caps;
-        REMOTE_MODS[idx_free].last_seen = 0;
+        g_RemoteMCs[idx_free].mac[1] = mac[1];
+        g_RemoteMCs[idx_free].mac[0] = mac[0];
+        g_RemoteMCs[idx_free].capsSW = caps;
+        g_RemoteMCs[idx_free].lastSeen = 0;
 #if defined(ESP_PLATFORM)
-        espnow_add_peer(REMOTE_MODS[idx_free].mac[1], REMOTE_MODS[idx_free].mac[0]);
+        espnow_add_peer(g_RemoteMCs[idx_free].mac[1], g_RemoteMCs[idx_free].mac[0]);
 #endif
     } else {
         printf("CANNOT add MC - too many\n");
     }
 }
 
-void ag_upd_remote_mods(void) {
+void ag_UpdRemoteMCs(void) {
     for (int i = 0 ; i < AG_MC_MAX_CNT; i ++) {
-        if (REMOTE_MODS[i].last_seen == -1) {
+        if (g_RemoteMCs[i].lastSeen == -1) {
             continue;
         }
-        if (REMOTE_MODS[i].last_seen > AG_MC_MAX_AGE) {
+        if (g_RemoteMCs[i].lastSeen > AG_MC_MAX_AGE) {
 #if defined(ESP_PLATFORM)
-            espnow_del_peer(REMOTE_MODS[i].mac[1], REMOTE_MODS[i].mac[0]);
+            espnow_del_peer(g_RemoteMCs[i].mac[1], g_RemoteMCs[i].mac[0]);
 #endif
-            REMOTE_MODS[i].mac[1] = 0;
-            REMOTE_MODS[i].mac[0] = 0;
-            REMOTE_MODS[i].caps = 0;
-            REMOTE_MODS[i].last_err = AG_ERR_NONE;
-            REMOTE_MODS[i].last_seen = -1;
+            g_RemoteMCs[i].mac[1] = 0;
+            g_RemoteMCs[i].mac[0] = 0;
+            g_RemoteMCs[i].capsSW = 0;
+            g_RemoteMCs[i].lastErr = AG_ERR_NONE;
+            g_RemoteMCs[i].lastSeen = -1;
         } else {
-            REMOTE_MODS[i].last_seen += 1;
+            g_RemoteMCs[i].lastSeen += 1;
         }
     }
 }
 
-void ag_upd_alarm(void) {
+void ag_UpdAlarm(void) {
     int nm = 0;
     for (int i = 0 ; i < AG_MC_MAX_CNT; i ++) {
-        if ((REMOTE_MODS[i].caps & AG_CAP_SW_TMC) != 0) {
+        if ((g_RemoteMCs[i].capsSW & AG_CAP_SW_TMC) != 0) {
             nm += 1;
         }
     }
-    if ((MOD_STATE.caps_sw & AG_CAP_SW_TMC) != 0) {
+    if ((g_MCConfig.capsSW & AG_CAP_SW_TMC) != 0) {
         nm += 1;
     }
     if (nm > 1) {
-        MOD_STATE.last_err = AG_ERR_MULTI_MASTER;
+        g_MCState.lastErr = AG_ERR_MULTI_MASTER;
         return;
     }
-    MOD_STATE.last_err = AG_ERR_NONE;
+    g_MCState.lastErr = AG_ERR_NONE;
 }
 
-void ag_upd_hw(void) {
+void ag_UpdHWState(void) {
     uint32_t led_code = 0;
 
-    if (MOD_STATE.last_err != 0) {
+    if (g_MCState.lastErr != 0) {
         led_code |= 0x00FF0000U;
     } else {
         led_code &= ~0x00FF0000U;
@@ -142,15 +131,7 @@ void ag_upd_hw(void) {
     gpio_SetRGB(led_code);
 }
 
-void ag_id_external(void) {
+void ag_LEDCtrl(AGLEDState_t led) {
     printf("ID LED\n");
     cnt_id_led = 5;
-}
-
-void ag_brd_pwr_off(void) {
-    printf("board POWER OFF\n");
-}
-
-void ag_brd_pwr_on(void) {
-    printf("board POWER ON\n");
 }

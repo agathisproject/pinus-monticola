@@ -20,9 +20,8 @@
 #include "cmd.h"
 #include "hw/platform.h"
 
-static CLICmdDef_t p_cmd_root[4]  = {
-    {"info", "[mfg]", "show module info", &cmd_Info},
-    {"stats", "", "show module statistics", &cmd_Stats},
+static CLICmdDef_t p_cmd_root[3]  = {
+    {"info", "[hw|sw]", "show module info", &cmd_Info},
     {"set",  "master [on|off]", "change configuration values", &cmd_Set},
     {"cfg", "[show|save|erase]", "show/save configuration", &cmd_Cfg},
 };
@@ -32,11 +31,11 @@ static CLICmdFolder_t p_f_root = {"", sizeof(p_cmd_root) / sizeof(p_cmd_root[0])
 
 static CLICmdDef_t p_cmd_mod[6]  = {
     {"info", "", "show modules", &cmd_ModInfo},
-    {"led", "id", "blink LED on module", &cmd_ModLed},
-    {"reset", "id", "reset module", &cmd_ModReset},
-    {"on", "id", "power on module", &cmd_ModPowerOn},
-    {"off", "id", "power off module", &cmd_ModPowerOff},
-    {"speed", "id", "speed test for module", &cmd_ModSpeed},
+    {"led", "<id>", "blink LED on module", &cmd_ModLed},
+    {"reset", "<id>", "reset module", &cmd_ModReset},
+    {"on", "<id>", "power on module", &cmd_ModPowerOn},
+    {"off", "<id>", "power off module", &cmd_ModPowerOff},
+    {"speed", "<id>", "speed test for module", &cmd_ModSpeed},
 };
 static CLICmdFolder_t p_f_mod = {"mod", sizeof(p_cmd_mod) / sizeof(p_cmd_mod[0]), p_cmd_mod,
                                  &p_cmd_mod[0], NULL, NULL, NULL, NULL
@@ -103,10 +102,10 @@ void task_rf(void *pvParameter) {
         agComm_SendFrame();
         agComm_RecvFrame();
 
-        ag_upd_alarm();
-        ag_upd_hw();
+        ag_UpdAlarm();
+        ag_UpdHWState();
         if ((t_now - t_update) > 0) {
-            ag_upd_remote_mods();
+            ag_UpdRemoteMCs();
             t_update = t_now;
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -130,10 +129,10 @@ void *task_rf (void *vargp) {
         agComm_SendFrame();
         agComm_RecvFrame();
 
-        ag_upd_alarm();
-        ag_upd_hw();
+        ag_UpdAlarm();
+        ag_UpdHWState();
         if ((t_now - t_update) > 0) {
-            ag_upd_remote_mods();
+            ag_UpdRemoteMCs();
             t_update = t_now;
         }
         usleep(10000);

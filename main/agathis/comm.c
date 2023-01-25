@@ -32,9 +32,9 @@ static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, 0, AG_FRM_DATA_LEN, NULL};
 
 int agComm_IsFrameFromMaster(AG_FRAME_L0 *frame) {
     for (int i = 0; i < AG_MC_MAX_CNT; i++) {
-        if ((REMOTE_MODS[i].mac[1] == frame->src_mac[1])
-                && (REMOTE_MODS[i].mac[0] == frame->src_mac[0])) {
-            if ((REMOTE_MODS[i].caps & AG_CAP_SW_TMC) != 0) {
+        if ((g_RemoteMCs[i].mac[1] == frame->src_mac[1])
+                && (g_RemoteMCs[i].mac[0] == frame->src_mac[0])) {
+            if ((g_RemoteMCs[i].capsSW & AG_CAP_SW_TMC) != 0) {
                 return 1;
             }
         }
@@ -286,7 +286,7 @@ void agComm_SendFrame(void) {
     free(send_data);
 #endif
     p_tx_frame.flags = 0;
-    MOD_STATS.tx_cnt ++;
+    g_MCStats.txCnt ++;
 }
 
 void agComm_RecvFrame(void) {
@@ -296,10 +296,10 @@ void agComm_RecvFrame(void) {
 
 //    printf("DBG %s: %d B from %06x:%06x\n", __func__, frame->nb,
 //           (unsigned int) frame->src_mac[1], (unsigned int) frame->src_mac[0]);
-    MOD_STATS.rx_cnt ++;
+    g_MCStats.rxCnt ++;
 
     if (agComm_IsFrameSts(&p_rx_frame) != 0) {
-        ag_add_remote_mod(p_rx_frame.src_mac, p_rx_frame.data[4]);
+        ag_AddRemoteMCInfo(p_rx_frame.src_mac, p_rx_frame.data[4]);
         p_rx_frame.flags = 0;
     } else if (agComm_IsFrameAck(&p_rx_frame) != 0) {
         p_rx_frame.flags = AG_FRM_FLAG_APP_RD;
@@ -309,19 +309,23 @@ void agComm_RecvFrame(void) {
             //printf("DBG RX@%d cmd from master %d\n", SIM_STATE.id, frame->data[2]);
             switch (agComm_GetFrameCmd(&p_rx_frame)) {
                 case AG_FRM_CMD_ID: {
-                    ag_id_external();
+                    ag_LEDCtrl(AG_LED_BLINK);
                     break;
                 }
                 case AG_FRM_CMD_RESET: {
-                    ag_reset();
+                    hw_Reset();
                     break;
                 }
                 case AG_FRM_CMD_POWER_OFF: {
-                    ag_brd_pwr_off();
+#if defined(__linux__)
+                    printf("board POWER OFF\n");
+#endif
                     break;
                 }
                 case AG_FRM_CMD_POWER_ON: {
-                    ag_brd_pwr_on();
+#if defined(__linux__)
+                    printf("board POWER ON\n");
+#endif
                     break;
                 }
                 case AG_FRM_CMD_PING: {
@@ -393,6 +397,6 @@ void agComm_SendStatus(void) {
     frame->dst_mac[1] = 0x00FFFFFF;
     frame->data[0] = AG_FRM_PROTO_VER1;
     agComm_SetFrameType(AG_FRM_TYPE_STS, frame);
-    frame->data[4] = MOD_STATE.caps_sw;
+    frame->data[4] = g_MCConfig.capsSW;
     agComm_SetFrameRTS(frame);
 }

@@ -5,7 +5,11 @@
 
 #include <stdint.h>
 
-void platform_init(void);
+void platform_Init(void);
+
+void platform_Show(void);
+
+void hw_Reset(void);
 
 /**
  * @brief returns the HW ID - usually the MAC address.

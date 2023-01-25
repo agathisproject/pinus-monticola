@@ -64,20 +64,21 @@ void stor_RestoreState(void) {
 #endif
     if ((buff[0] == 0x00) || (buff[0] == 0xFF)) {
         printf("W (%s) NO state - using defaults\n", __func__);
-    } else if (buff[0] == MOD_STATE.ver) {
-        memcpy(((uint8_t *) &MOD_STATE), buff, (sizeof (MOD_STATE) / sizeof (uint8_t)));
+    } else if (buff[0] == g_MCConfig.ver) {
+        memcpy(((uint8_t *) &g_MCConfig), buff,
+               (sizeof (g_MCConfig) / sizeof (uint8_t)));
         printf("I (%d) state restored\n", __LINE__);
     } else {
         printf("W (%s) DIFFERENT state - using defaults\n", __func__);
     }
 
-    MOD_STATE.mfr_name[15] = 0x00;
-    MOD_STATE.mfr_pn[15] = 0x00;
-    MOD_STATE.mfr_sn[15] = 0x00;
+    g_MCConfig.mfrName[15] = 0x00;
+    g_MCConfig.mfrPN[15] = 0x00;
+    g_MCConfig.mfrSN[15] = 0x00;
 }
 
 void stor_SaveState(void) {
-    size_t state_size = sizeof (MOD_STATE) / sizeof (uint8_t);
+    size_t state_size = sizeof (g_MCConfig) / sizeof (uint8_t);
     if (state_size > AG_STORAGE_SIZE) {
         printf("E (%s) state size TOO BIG\n", __func__);
         return;
@@ -89,7 +90,7 @@ void stor_SaveState(void) {
 
     memset(buff, 0xFF, AG_STORAGE_SIZE);
     ESP_ERROR_CHECK( nvs_open(APP_NVS_NAMESPACE, NVS_READWRITE, &hndl_nvs) );
-    memcpy(buff, ((uint8_t *) &MOD_STATE), state_size);
+    memcpy(buff, ((uint8_t *) &g_MCConfig), state_size);
     ESP_ERROR_CHECK( nvs_set_blob(hndl_nvs, APP_NVS_KEY, buff, state_size) );
     ESP_ERROR_CHECK( nvs_commit(hndl_nvs) );
     nvs_close(hndl_nvs);
@@ -106,7 +107,7 @@ void stor_SaveState(void) {
     uint8_t buff[AG_STORAGE_SIZE];
 
     memset(buff, 0xFF, AG_STORAGE_SIZE);
-    memcpy(buff, ((uint8_t *) &MOD_STATE), state_size);
+    memcpy(buff, ((uint8_t *) &g_MCConfig), state_size);
     size_t n_wr = fwrite(buff, sizeof (uint8_t), AG_STORAGE_SIZE, fp);
     fflush(fp);
     fclose(fp);

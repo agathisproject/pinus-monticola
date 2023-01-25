@@ -15,8 +15,8 @@ void app_main(void) {
     char *appName = pcTaskGetName(NULL);
     ESP_LOGI(appName, "start");
 
-    platform_init();
-    ag_init();
+    platform_Init();
+    ag_Init();
 
     xTaskCreate(task_cli, "task_CLI", 2048, NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(task_rf, "task_RF", 4096, NULL, (tskIDLE_PRIORITY + 2), NULL);

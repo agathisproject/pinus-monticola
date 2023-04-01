@@ -29,13 +29,17 @@ extern AGLclConfig_t g_MCConfig;
  */
 typedef struct {
     AGError_t lastErr;
+    uint16_t flags;
 } AGLclState_t;
 
 extern AGLclState_t g_MCState;
 
 typedef struct {
-    uint32_t txCnt;
-    uint32_t rxCnt;
+    uint32_t cntTX;
+    uint32_t cntTXDrop;
+    uint32_t cntRX;
+    uint32_t cntRXDrop;
+    uint32_t cntRXFail;  ///< RX packets not processed
 } AGLclStats_t;
 
 extern AGLclStats_t g_MCStats;
@@ -56,6 +60,8 @@ typedef struct {
 extern AGRmtState_t g_RemoteMCs[AG_MC_MAX_CNT];
 
 void ag_Init(void);
+
+void ag_Exit(void);
 
 void ag_AddRemoteMCInfo(const uint32_t *mac, uint8_t caps);
 

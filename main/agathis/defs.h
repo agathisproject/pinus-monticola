@@ -9,6 +9,8 @@
 
 #define AG_CAP_SW_TMC       0x01
 
+#define AG_FLAG_SW_TXOFF    0x01
+
 typedef enum {
     AG_ERR_NONE = 0,
     AG_ERR_MULTI_MASTER,

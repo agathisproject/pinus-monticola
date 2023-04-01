@@ -8,12 +8,15 @@
 
 #define AG_FRM_DATA_LEN     16
 
-#define AG_FRM_FLAG_APP_RD      0x01
-#define AG_FRM_FLAG_APP_WR      0x02
-#define AG_FRM_FLAG_PHY_RX      0x04
-#define AG_FRM_FLAG_PHY_TX      0x08
-
 #define AG_FRM_PROTO_VER1       1
+#define AG_FRM_VER_OFFSET       0
+#define AG_FRM_TYPE_OFFSET      1
+#define AG_FRM_CMD_OFFSET       2
+
+typedef enum {
+    AG_RX_NONE = 0,
+    AG_RX_FULL,
+} AGRXState_t;
 
 typedef enum {
     AG_FRM_TYPE_STS = 0,
@@ -32,39 +35,31 @@ typedef enum {
 typedef struct {
     uint32_t dst_mac[2];
     uint32_t src_mac[2];
-    uint8_t flags;
-    uint8_t nb;
-    uint8_t *data;
+    uint8_t data[AG_FRM_DATA_LEN];
 } AG_FRAME_L0;
 
-int agComm_IsFrameFromMaster(AG_FRAME_L0 *frame);
+void agComm_InitTXFrame(AG_FRAME_L0 *frame);
 
-int agComm_IsFrameSts(AG_FRAME_L0 *frame);
+void agComm_InitRXFrame(AG_FRAME_L0 *frame);
 
-int agComm_IsFrameCmd(AG_FRAME_L0 *frame);
+AGRXState_t agComm_GetRXState(void);
 
-int agComm_IsFrameAck(AG_FRAME_L0 *frame);
+AGFrmType_t agComm_GetRXFrameType(void);
 
-AG_FRAME_L0 *agComm_GetTXFrame(void);
+AGFrmCmd_t agComm_GetRXFrameCmd(void);
 
-AG_FRAME_L0 *agComm_GetRXFrame(void);
+void agComm_CpRXFrame(AG_FRAME_L0 *frame);
 
-void agComm_SendFrame(void);
+int agComm_IsRXFrameFromBcast(void);
 
-void agComm_RecvFrame(void);
+void agComm_SendFrame(AG_FRAME_L0 *frame);
 
 void agComm_SetFrameType(AGFrmType_t type, AG_FRAME_L0 *frame);
 
 void agComm_SetFrameCmd(AGFrmCmd_t cmd, AG_FRAME_L0 *frame);
 
-AGFrmCmd_t agComm_GetFrameCmd(AG_FRAME_L0 *frame);
-
-void agComm_SetFrameRTS(AG_FRAME_L0 *frame);
-
-void agComm_SetFrameDone(AG_FRAME_L0 *frame);
-
 void agComm_Init(void);
 
-void agComm_SendStatus(void);
+void agComm_Exit(void);
 
 #endif /* AGATHIS_COMM_ZC5DS878HG83B98T */

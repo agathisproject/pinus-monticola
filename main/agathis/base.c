@@ -11,6 +11,7 @@
 #endif
 
 #include "config.h"
+#include "comm.h"
 #include "../hw/storage.h"
 #include "../hw/platform.h"
 
@@ -19,9 +20,11 @@ AGLclConfig_t g_MCConfig = {.ver = 1, .capsHW = 0, .capsSW = 0,
                             .crc = 0xdeadbeef,
                            };
 
-AGLclState_t g_MCState = {.lastErr = AG_ERR_NONE};
+AGLclState_t g_MCState = {.lastErr = AG_ERR_NONE, .flags = 0x0000};
 
-AGLclStats_t g_MCStats = {0, 0};
+AGLclStats_t g_MCStats = {.cntTX = 0, .cntTXDrop = 0,
+                          .cntRX = 0, .cntRXDrop = 0, .cntRXFail = 0
+                         };
 
 AGRmtState_t g_RemoteMCs[AG_MC_MAX_CNT] = {
     {.mac = {0, 0}, .capsSW = 0, .lastErr = 0, .lastSeen = -1},
@@ -45,8 +48,14 @@ AGRmtState_t g_RemoteMCs[AG_MC_MAX_CNT] = {
 static uint8_t cnt_id_led = 0;
 
 void ag_Init(void) {
+    //printf("DBG %s\n", __func__ );
     stor_RestoreState();
     g_MCState.lastErr = AG_ERR_NONE;
+}
+
+void ag_Exit(void) {
+    agComm_Exit();
+    //printf("DBG %s\n", __func__ );
 }
 
 void ag_AddRemoteMCInfo(const uint32_t *mac, uint8_t caps) {

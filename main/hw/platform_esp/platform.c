@@ -157,6 +157,14 @@ void platform_Show(void) {
     printf("\n");
 }
 
+const char * platform_GetParamStr(PlatformParamId_t param_id) {
+    switch (param_id) {
+        default: {
+            return NULL;
+        }
+    }
+}
+
 void hw_Reset(void) {
     esp_restart();
 }

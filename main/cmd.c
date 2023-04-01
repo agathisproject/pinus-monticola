@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "agathis/base.h"
 #include "agathis/comm.h"
@@ -13,6 +14,7 @@
 #include "cli/cli.h"
 #include "hw/storage.h"
 #include "hw/platform.h"
+#include "opt/utils.h"
 
 void cmd_SetPrompt(void) {
     char prompt[CLI_PROMPT_MAX_LEN];
@@ -33,9 +35,13 @@ CLIStatus_t cmd_Info(CLICmdParsed_t *cmdp) {
     if (cmdp->nTk == 1) {
         printf("error: %d\n", g_MCState.lastErr);
 #if defined(ESP_PLATFORM)
-        printf("TX/RX pkts.: %lu/%lu\n", g_MCStats.txCnt, g_MCStats.rxCnt);
+        printf("TX pkts: %lu/%lu\n", g_MCStats.cntTX, g_MCStats.cntTXDrop);
+        printf("RX pkts: %lu/%lu/%lu\n", g_MCStats.cntRX, g_MCStats.cntRXDrop,
+               g_MCStats.cntRXFail);
 #elif defined(__linux__)
-        printf("TX/RX pkts.: %u/%u\n", g_MCStats.txCnt, g_MCStats.rxCnt);
+        printf("TX pkts: %u/%u\n", g_MCStats.cntTX, g_MCStats.cntTXDrop);
+        printf("RX pkts: %u/%u/%u\n", g_MCStats.cntRX, g_MCStats.cntRXDrop,
+               g_MCStats.cntRXFail);
 #endif
         printf("temp: %.2f C\n", hw_GetTemperature());
         return CLI_NO_ERROR;
@@ -66,6 +72,13 @@ CLIStatus_t cmd_Set(CLICmdParsed_t *cmdp) {
         }
         cmd_SetPrompt();
         return CLI_NO_ERROR;
+    } else if (strncmp(cmdp->tokens[1], "tx", 2) == 0) {
+        if (strncmp(cmdp->tokens[2], "off", 3) == 0) {
+            g_MCState.flags |= AG_FLAG_SW_TXOFF;
+        } else {
+            g_MCState.flags &= (uint8_t) (~AG_FLAG_SW_TXOFF);
+        }
+        return CLI_NO_ERROR;
     }
     return CLI_CMD_PARAMS_ERROR;
 }
@@ -90,6 +103,9 @@ CLIStatus_t cmd_Cfg(CLICmdParsed_t *cmdp) {
     }
     return CLI_CMD_PARAMS_ERROR;
 }
+
+static AG_FRAME_L0 p_tx_frame = {{0, 0}, {0, 0}, {0}};
+static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, {0}};
 
 CLIStatus_t cmd_ModInfo(CLICmdParsed_t *cmdp) {
     if (cmdp->nTk > 1) {
@@ -132,18 +148,13 @@ CLIStatus_t cmd_ModLed(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    AG_FRAME_L0 *frame = agComm_GetTXFrame();
-    if (frame == NULL) {
-        printf("%s - CANNOT get TX frame\n", __func__);
-        return CLI_NO_ERROR;
-    }
-
-    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
-    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
-    frame->data[0] = AG_FRM_PROTO_VER1;
-    agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
-    agComm_SetFrameCmd(AG_FRM_CMD_ID, frame);
-    agComm_SetFrameRTS(frame);
+    agComm_InitTXFrame(&p_tx_frame);
+    p_tx_frame.dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    p_tx_frame.dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
+    p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+    agComm_SetFrameType(AG_FRM_TYPE_CMD, &p_tx_frame);
+    agComm_SetFrameCmd(AG_FRM_CMD_ID, &p_tx_frame);
+    agComm_SendFrame(&p_tx_frame);
     return CLI_NO_ERROR;
 }
 
@@ -166,18 +177,13 @@ CLIStatus_t cmd_ModReset(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    AG_FRAME_L0 *frame = agComm_GetTXFrame();
-    if (frame == NULL) {
-        printf("%s - CANNOT get TX frame\n", __func__);
-        return CLI_NO_ERROR;
-    }
-
-    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
-    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
-    frame->data[0] = AG_FRM_PROTO_VER1;
-    agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
-    agComm_SetFrameCmd(AG_FRM_CMD_RESET, frame);
-    agComm_SetFrameRTS(frame);
+    agComm_InitTXFrame(&p_tx_frame);
+    p_tx_frame.dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    p_tx_frame.dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
+    p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+    agComm_SetFrameType(AG_FRM_TYPE_CMD, &p_tx_frame);
+    agComm_SetFrameCmd(AG_FRM_CMD_RESET, &p_tx_frame);
+    agComm_SendFrame(&p_tx_frame);
     return CLI_NO_ERROR;
 }
 
@@ -200,18 +206,13 @@ CLIStatus_t cmd_ModPowerOn(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    AG_FRAME_L0 *frame = agComm_GetTXFrame();
-    if (frame == NULL) {
-        printf("%s - CANNOT get TX frame\n", __func__);
-        return CLI_NO_ERROR;
-    }
-
-    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
-    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
-    frame->data[0] = AG_FRM_PROTO_VER1;
-    agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
-    agComm_SetFrameCmd(AG_FRM_CMD_POWER_ON, frame);
-    agComm_SetFrameRTS(frame);
+    agComm_InitTXFrame(&p_tx_frame);
+    p_tx_frame.dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    p_tx_frame.dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
+    p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+    agComm_SetFrameType(AG_FRM_TYPE_CMD, &p_tx_frame);
+    agComm_SetFrameCmd(AG_FRM_CMD_POWER_ON, &p_tx_frame);
+    agComm_SendFrame(&p_tx_frame);
     return CLI_NO_ERROR;
 }
 
@@ -234,18 +235,13 @@ CLIStatus_t cmd_ModPowerOff(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    AG_FRAME_L0 *frame = agComm_GetTXFrame();
-    if (frame == NULL) {
-        printf("%s - CANNOT get TX frame\n", __func__);
-        return CLI_NO_ERROR;
-    }
-
-    frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
-    frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
-    frame->data[0] = AG_FRM_PROTO_VER1;
-    agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
-    agComm_SetFrameCmd(AG_FRM_CMD_POWER_OFF, frame);
-    agComm_SetFrameRTS(frame);
+    agComm_InitTXFrame(&p_tx_frame);
+    p_tx_frame.dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+    p_tx_frame.dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
+    p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+    agComm_SetFrameType(AG_FRM_TYPE_CMD, &p_tx_frame);
+    agComm_SetFrameCmd(AG_FRM_CMD_POWER_OFF, &p_tx_frame);
+    agComm_SendFrame(&p_tx_frame);
     return CLI_NO_ERROR;
 }
 
@@ -254,7 +250,7 @@ CLIStatus_t cmd_ModSpeed(CLICmdParsed_t *cmdp) {
         printf("E (%d) ONLY master can do this\n", __LINE__);
         return CLI_CMD_FAIL;
     }
-    if (cmdp->nTk != 2) {
+    if ((cmdp->nTk < 2) || (cmdp->nTk > 3)) {
         return CLI_CMD_PARAMS_ERROR;
     }
 
@@ -268,32 +264,59 @@ CLIStatus_t cmd_ModSpeed(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     }
 
-    AG_FRAME_L0 *frame;
-
-    uint16_t n_ping = 0, n_reply = 0;
-    clock_t t0 = clock();
-    while ((clock() - t0) < CLOCKS_PER_SEC) {
-        frame = agComm_GetTXFrame();
-        if (frame == NULL) {
-            printf("%s - CANNOT get TX frame\n", __func__);
-            continue;
-        }
-        frame->dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
-        frame->dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
-        frame->data[0] = AG_FRM_PROTO_VER1;
-        agComm_SetFrameType(AG_FRM_TYPE_CMD, frame);
-        agComm_SetFrameCmd(AG_FRM_CMD_PING, frame);
-        agComm_SetFrameRTS(frame);
-        n_ping ++;
-
-        frame = agComm_GetRXFrame();
-        if (frame == NULL) {
-            printf("%s - CANNOT get RX frame\n", __func__);
-            continue;
-        }
-        agComm_SetFrameDone(frame);
-        n_reply ++;
+    uint16_t cnt = 0;
+    if (cmdp->nTk == 3) {
+        cnt = (uint16_t) strtol(cmdp->tokens[2], NULL, 10);;
     }
-    printf("TX packets: %d, RX packets: %d\n", n_ping, n_reply);
+    if (cnt < 1) {
+        cnt  = 1;
+    }
+
+    struct timeval t0, t1;
+
+    agComm_InitTXFrame(&p_tx_frame);
+    for (uint16_t i = 0; i < cnt; i++) {
+        uint16_t n_ping = 0, n_reply = 0;
+
+        gettimeofday(&t0, NULL);
+        gettimeofday(&t1, NULL);
+        log_file("CMD", "start speed test %d", (i + 1));
+        while (diff_ms(t1, t0) < 1000) {
+            //printf("DBG (%d) %ld - %ld = %ld\n", i, t1, t0, (t1 - t0));
+            gettimeofday(&t1, NULL);
+            if ((n_ping - n_reply) < 1) {
+                p_tx_frame.dst_mac[1] = g_RemoteMCs[mc_id].mac[1];
+                p_tx_frame.dst_mac[0] = g_RemoteMCs[mc_id].mac[0];
+                p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+                agComm_SetFrameType(AG_FRM_TYPE_CMD, &p_tx_frame);
+                agComm_SetFrameCmd(AG_FRM_CMD_PING, &p_tx_frame);
+                agComm_SendFrame(&p_tx_frame);
+                n_ping++;
+            }
+
+            if (agComm_GetRXState() != AG_RX_NONE) {
+                if (agComm_GetRXFrameType() == AG_FRM_TYPE_ACK) {
+                    if (agComm_GetRXFrameCmd() == AG_FRM_CMD_PING) {
+                        agComm_CpRXFrame(&p_rx_frame);
+                        n_reply++;
+                    }
+                }
+            }
+        }
+        printf("(%d) TX packets: %d, RX packets: %d\n", (i + 1), n_ping, n_reply);
+
+        usleep(5000);
+        if (n_ping > n_reply) {
+            // get rid of any lost replies from previous run
+            usleep(5000);
+            if (agComm_GetRXState() != AG_RX_NONE) {
+                if (agComm_GetRXFrameType() == AG_FRM_TYPE_ACK) {
+                    if (agComm_GetRXFrameCmd() == AG_FRM_CMD_PING) {
+                        agComm_CpRXFrame(&p_rx_frame);
+                    }
+                }
+            }
+        }
+    }
     return CLI_NO_ERROR;
 }

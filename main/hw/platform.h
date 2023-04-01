@@ -9,6 +9,12 @@ void platform_Init(void);
 
 void platform_Show(void);
 
+typedef enum {
+    PLTF_LOG_PATH,
+} PlatformParamId_t;
+
+const char * platform_GetParamStr(PlatformParamId_t param_id);
+
 void hw_Reset(void);
 
 /**

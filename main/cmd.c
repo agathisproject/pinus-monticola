@@ -20,7 +20,7 @@ void cmd_SetPrompt(void) {
     char prompt[CLI_PROMPT_MAX_LEN];
     uint32_t mac[2];
 
-    hw_GetIDCompact(mac);
+    pltf_GetIDCompact(mac);
 #if defined(ESP_PLATFORM)
     snprintf(prompt, CLI_PROMPT_MAX_LEN, "[%06lx:%06lx]%c ", mac[1], mac[0],
              ((g_MCConfig.capsSW && AG_CAP_SW_TMC) ? '#' : '$'));
@@ -47,10 +47,9 @@ CLIStatus_t cmd_Info(CLICmdParsed_t *cmdp) {
         return CLI_NO_ERROR;
     } else if (cmdp->nTk == 2) {
         if (strncmp(cmdp->tokens[1], "hw", 2) == 0) {
-            platform_Show();
+            pltf_ShowHW();
         } else if (strncmp(cmdp->tokens[1], "sw", 2) == 0) {
-            printf("APP_NAME: %s\n", APP_NAME);
-            printf("APP_VER: %d\n", 0);
+            pltf_ShowSW();
         } else {
             return CLI_CMD_PARAMS_ERROR;
         }

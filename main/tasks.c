@@ -124,45 +124,44 @@ void *task_rf (void *vargp) {
                 agComm_CpRXFrame(&p_rx_frame);
                 ag_AddRemoteMCInfo(p_rx_frame.src_mac, p_rx_frame.data[4]);
             } else if (agComm_GetRXFrameType() == AG_FRM_TYPE_CMD) {
-                switch (agComm_GetRXFrameCmd()) {
-                    case AG_FRM_CMD_ID: {
-                        ag_LEDCtrl(AG_LED_BLINK);
-                        break;
-                    }
-                    case AG_FRM_CMD_RESET: {
-                        hw_Reset();
-                        break;
-                    }
-                    case AG_FRM_CMD_POWER_OFF: {
-#if defined(__linux__)
-                        printf("board POWER OFF\n");
-#endif
-                        break;
-                    }
-                    case AG_FRM_CMD_POWER_ON: {
-#if defined(__linux__)
-                        printf("board POWER ON\n");
-#endif
-                        break;
-                    }
-                    case AG_FRM_CMD_PING: {
-                        if (agComm_IsRXFrameFromBcast()) {
+                if (agComm_IsRXFrameFromMaster()) {
+                    switch (agComm_GetRXFrameCmd()) {
+                        case AG_FRM_CMD_ID: {
+                            agComm_CpRXFrame(&p_rx_frame);
+                            ag_LEDCtrl(AG_LED_BLINK);
                             break;
                         }
-                        agComm_CpRXFrame(&p_rx_frame);
-                        agComm_InitTXFrame(&p_tx_frame);
-                        p_tx_frame.dst_mac[0] = p_rx_frame.src_mac[0];
-                        p_tx_frame.dst_mac[1] = p_rx_frame.src_mac[1];
+                        case AG_FRM_CMD_RESET: {
+                            agComm_CpRXFrame(&p_rx_frame);
+                            pltf_Reset();
+                            break;
+                        }
+                        case AG_FRM_CMD_POWER_OFF: {
+                            agComm_CpRXFrame(&p_rx_frame);
+                            pltf_PwrOff();
+                            break;
+                        }
+                        case AG_FRM_CMD_POWER_ON: {
+                            agComm_CpRXFrame(&p_rx_frame);
+                            pltf_PwrOn();
+                            break;
+                        }
+                        case AG_FRM_CMD_PING: {
+                            agComm_CpRXFrame(&p_rx_frame);
+                            agComm_InitTXFrame(&p_tx_frame);
+                            p_tx_frame.dst_mac[0] = p_rx_frame.src_mac[0];
+                            p_tx_frame.dst_mac[1] = p_rx_frame.src_mac[1];
 
-                        p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
-                        agComm_SetFrameType(AG_FRM_TYPE_ACK, &p_tx_frame);
-                        agComm_SetFrameCmd(AG_FRM_CMD_PING, &p_tx_frame);
-                        agComm_SendFrame(&p_tx_frame);
-                        break;
-                    }
-                    default: {
-                        printf("W (%s) UNRECOGNIZED command %d\n", __func__, agComm_GetRXFrameCmd());
-                        break;
+                            p_tx_frame.data[0] = AG_FRM_PROTO_VER1;
+                            agComm_SetFrameType(AG_FRM_TYPE_ACK, &p_tx_frame);
+                            agComm_SetFrameCmd(AG_FRM_CMD_PING, &p_tx_frame);
+                            agComm_SendFrame(&p_tx_frame);
+                            break;
+                        }
+                        default: {
+                            printf("W (%s) UNRECOGNIZED command %d\n", __func__, agComm_GetRXFrameCmd());
+                            break;
+                        }
                     }
                 }
             }

@@ -50,7 +50,7 @@ AGFrmCmd_t agComm_GetRXFrameCmd(void);
 
 void agComm_CpRXFrame(AG_FRAME_L0 *frame);
 
-int agComm_IsRXFrameFromBcast(void);
+int agComm_IsRXFrameFromMaster(void);
 
 void agComm_SendFrame(AG_FRAME_L0 *frame);
 

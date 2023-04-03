@@ -9,8 +9,6 @@
 #include "cli/cli_types.h"
 #include "agathis/config.h"
 
-#define APP_NAME "pinus-monitcola"
-
 void cmd_SetPrompt(void);
 
 CLIStatus_t cmd_Info(CLICmdParsed_t *cmdp);

@@ -5,29 +5,37 @@
 
 #include <stdint.h>
 
-void platform_Init(void);
+#define APP_NAME "pinus-monitcola"
 
-void platform_Show(void);
+void pltf_Init(void);
+
+void pltf_ShowHW(void);
+
+void pltf_ShowSW(void);
 
 typedef enum {
     PLTF_LOG_PATH,
-} PlatformParamId_t;
+} PltfParamId_t;
 
-const char * platform_GetParamStr(PlatformParamId_t param_id);
-
-void hw_Reset(void);
+const char * pltf_GetParamStr(PltfParamId_t param_id);
 
 /**
  * @brief returns the HW ID - usually the MAC address.
  * @param mac array of 6 * uint8_t
  */
-void hw_GetID(uint8_t *mac);
+void pltf_GetID(uint8_t *mac);
 
 /**
  * @brief returns the HW ID - usually the MAC address.
  * @param mac array of 2 * uint32_t
  */
-void hw_GetIDCompact(uint32_t *mac);
+void pltf_GetIDCompact(uint32_t *mac);
+
+void pltf_Reset(void);
+
+void pltf_PwrOn(void);
+
+void pltf_PwrOff(void);
 
 /**
  * @brief send RBG code to LED. If the LED is not RBG capable it will just turn on.

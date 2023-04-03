@@ -40,7 +40,7 @@ static AG_FRAME_L0 p_rx_frame = {{0, 0}, {0, 0}, {0}};
 void agComm_InitTXFrame(AG_FRAME_L0 *frame) {
     uint32_t mac[2];
 
-    hw_GetIDCompact(mac);
+    pltf_GetIDCompact(mac);
     frame->dst_mac[0] = 0x00FFFFFF;
     frame->dst_mac[1] = 0x00FFFFFF;
     frame->src_mac[0] = mac[0];
@@ -94,14 +94,6 @@ int agComm_IsRXFrameFromMaster(void) {
                 return 1;
             }
         }
-    }
-    return 0;
-}
-
-int agComm_IsRXFrameFromBcast(void) {
-    if ((p_rx_frame.dst_mac[1] == 0x00FFFFFF)
-            && (p_rx_frame.dst_mac[0] == 0x00FFFFFF)) {
-        return 1;
     }
     return 0;
 }
@@ -173,7 +165,7 @@ static void p_linux_rx_cbk(void) {
 static void p_mq_rx(union sigval sv) {
     uint32_t mac[2];
 
-    hw_GetIDCompact(mac);
+    pltf_GetIDCompact(mac);
 
     mqd_t mq_des = *((mqd_t *) sv.sival_ptr);
     struct mq_attr attr;

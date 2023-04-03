@@ -10,7 +10,7 @@
 void log_file(const char *tag, const char *format, ...) {
 #if defined(__linux)
     FILE *fp;
-    const char *f_path = platform_GetParamStr(PLTF_LOG_PATH);
+    const char *f_path = pltf_GetParamStr(PLTF_LOG_PATH);
     va_list args;
     struct timeval t_now;
 

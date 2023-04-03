@@ -79,13 +79,13 @@ static void p_temp_init(void) {
     ESP_LOGI(TAG, "temperature sensor init done");
 }
 
-void platform_Init(void) {
+void pltf_Init(void) {
     p_nvs_init();
     p_gpio_init();
     p_temp_init();
 }
 
-void platform_Show(void) {
+void pltf_ShowHW(void) {
     esp_chip_info_t tmp;
 
     esp_chip_info(&tmp);
@@ -157,7 +157,12 @@ void platform_Show(void) {
     printf("\n");
 }
 
-const char * platform_GetParamStr(PlatformParamId_t param_id) {
+void pltf_ShowSW(void) {
+    printf("APP_NAME: %s\n", APP_NAME);
+    printf("APP_VER: %d\n", 0);
+}
+
+const char * pltf_GetParamStr(PltfParamId_t param_id) {
     switch (param_id) {
         default: {
             return NULL;
@@ -165,11 +170,7 @@ const char * platform_GetParamStr(PlatformParamId_t param_id) {
     }
 }
 
-void hw_Reset(void) {
-    esp_restart();
-}
-
-void hw_GetID(uint8_t *mac) {
+void pltf_GetID(uint8_t *mac) {
     uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     ESP_ERROR_CHECK( esp_efuse_mac_get_default(buff) );
@@ -178,12 +179,24 @@ void hw_GetID(uint8_t *mac) {
     }
 }
 
-void hw_GetIDCompact(uint32_t *mac) {
+void pltf_GetIDCompact(uint32_t *mac) {
     uint8_t buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     ESP_ERROR_CHECK( esp_efuse_mac_get_default(buff) );
     mac[1] = ((uint32_t) buff[0] << 16) | ((uint32_t) buff[1] << 8) | buff[2];
     mac[0] = ((uint32_t) buff[3] << 16) | ((uint32_t) buff[4] << 8) | buff[5];
+}
+
+void pltf_Reset(void) {
+    esp_restart();
+}
+
+void pltf_PwrOn(void) {
+    printf("board POWER ON\n");
+}
+
+void pltf_PwrOff(void) {
+    printf("board POWER OFF\n");
 }
 
 void gpio_SetRGB(uint32_t code) {
